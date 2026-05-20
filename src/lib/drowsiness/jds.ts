@@ -1,26 +1,34 @@
 import { clamp } from "./geometry";
 import type { DrowsinessMetrics, JdsLevel, JdsResult } from "./types";
 
-export function calculateJDS(metrics: Omit<DrowsinessMetrics, "avgEAR" | "mar">): JdsResult {
+export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
   let score = 0;
 
-  score += Math.min(metrics.perclos * 1.2, 35);
+  score += Math.min(metrics.perclos * 1.35, 40);
 
-  if (metrics.blinkRate < 8) score += 20;
-  else if (metrics.blinkRate < 12) score += 12;
-  else if (metrics.blinkRate > 30) score += 15;
+  if (metrics.blinkRate < 8) score += 18;
+  else if (metrics.blinkRate < 12) score += 10;
+  else if (metrics.blinkRate > 30) score += 14;
 
-  if (metrics.blinkDuration > 2000) score += 15;
+  if (metrics.blinkDuration > 2500) score += 24;
+  else if (metrics.blinkDuration > 1800) score += 18;
   else if (metrics.blinkDuration > 800) score += 10;
   else if (metrics.blinkDuration > 500) score += 5;
 
   if (metrics.yawnDetected) score += 15;
 
-  if (metrics.headPitch > 25) score += 10;
-  else if (metrics.headPitch > 15) score += 6;
+  if (metrics.headPitch > 24) score += 14;
+  else if (metrics.headPitch > 14) score += 8;
   if (Math.abs(metrics.headRoll) > 15) score += 4;
 
-  if (metrics.consecutiveClosed > 90) score += 5;
+  if (metrics.avgEAR > 0 && metrics.avgEAR < 0.13) score += 18;
+  else if (metrics.avgEAR > 0 && metrics.avgEAR < 0.17) score += 10;
+
+  if (metrics.consecutiveClosed > 120) score += 18;
+  else if (metrics.consecutiveClosed > 75) score += 12;
+  else if (metrics.consecutiveClosed > 45) score += 6;
+
+  if (metrics.gazeDown && metrics.avgEAR < 0.2) score += 8;
 
   return describeJDS(Math.round(clamp(score, 0, 100)));
 }

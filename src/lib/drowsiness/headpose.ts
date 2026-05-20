@@ -15,7 +15,7 @@ export function estimateHeadPose(landmarks: Landmark[]) {
   const eyeMidY = (leftEye.y + rightEye.y) / 2;
   const faceHeight = Math.max(0.001, chin.y - eyeMidY);
   const noseRatio = (nose.y - eyeMidY) / faceHeight;
-  const pitch = (noseRatio - 0.42) * 70;
+  const pitch = (noseRatio - 0.38) * 85;
   const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
 
   return { pitch, roll };

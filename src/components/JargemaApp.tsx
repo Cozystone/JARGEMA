@@ -46,11 +46,16 @@ const fallbackMetrics: DrowsinessMetrics = {
 };
 
 const captions = ["오늘도 꿈나라행 직행 티켓", "공부와 수면의 절묘한 콜라보", "교과서가 최고의 수면제"];
+const FACE_OVERVIEW_POINTS = [1, 10, 33, 61, 133, 152, 263, 291, 362, 468, 473];
+const LEFT_EYE_POINTS = [33, 160, 158, 133, 153, 144];
+const RIGHT_EYE_POINTS = [362, 385, 387, 263, 373, 380];
+const MOUTH_POINTS = [61, 185, 40, 39, 291, 375, 321, 405];
 
 export function JargemaApp() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshLoopRef = useRef<number | null>(null);
+  const canvasRatioRef = useRef("16 / 9");
   const trackersRef = useRef({
     perclos: new PERCLOSTracker(900),
     blink: new BlinkTracker(),
@@ -67,6 +72,7 @@ export function JargemaApp() {
   const [cameraDiagnostic, setCameraDiagnostic] = useState("");
   const [cameraDevices, setCameraDevices] = useState<CameraDevice[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
+  const [canvasRatio, setCanvasRatio] = useState("16 / 9");
   const [metrics, setMetrics] = useState<DrowsinessMetrics>(fallbackMetrics);
   const [jds, setJds] = useState<JdsResult>(describeJDS(0));
   const [autoUpload, setAutoUpload] = useState(false);
@@ -205,6 +211,7 @@ export function JargemaApp() {
     video.muted = true;
     video.playsInline = true;
     await video.play();
+    updateCanvasRatio(video.videoWidth || 16, video.videoHeight || 9);
     setCameraStatus("감지 실행 중");
     await startFaceMesh(video);
   }
@@ -239,6 +246,7 @@ export function JargemaApp() {
         setCameraStatus("얼굴을 카메라 중앙에 맞춰주세요.");
         return;
       }
+      drawLandmarks(landmarks);
       processLandmarks(landmarks);
     });
 
@@ -259,7 +267,41 @@ export function JargemaApp() {
     if (!ctx) return;
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
+    updateCanvasRatio(canvas.width, canvas.height);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  }
+
+  function updateCanvasRatio(width: number, height: number) {
+    const nextRatio = `${width} / ${height}`;
+    if (canvasRatioRef.current === nextRatio) return;
+    canvasRatioRef.current = nextRatio;
+    setCanvasRatio(nextRatio);
+  }
+
+  function drawLandmarks(landmarks: Landmark[]) {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    drawPointSet(ctx, canvas, landmarks, FACE_OVERVIEW_POINTS, "#00ff88", 3);
+    drawPointSet(ctx, canvas, landmarks, LEFT_EYE_POINTS, "#5ee7ff", 4);
+    drawPointSet(ctx, canvas, landmarks, RIGHT_EYE_POINTS, "#5ee7ff", 4);
+    drawPointSet(ctx, canvas, landmarks, MOUTH_POINTS, "#ffd166", 4);
+  }
+
+  function drawPointSet(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, landmarks: Landmark[], points: number[], color: string, radius: number) {
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "rgba(0,0,0,0.55)";
+    ctx.lineWidth = 2;
+    for (const index of points) {
+      const landmark = landmarks[index];
+      if (!landmark) continue;
+      const x = landmark.x * canvas.width;
+      const y = landmark.y * canvas.height;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fill();
+    }
   }
 
   function processLandmarks(landmarks: Landmark[]) {
@@ -413,7 +455,7 @@ export function JargemaApp() {
           <div className="grid gap-4 rounded-lg border border-black/10 bg-white p-3 shadow-sm md:grid-cols-[minmax(0,1fr)_280px]">
             <div className="relative overflow-hidden rounded-md bg-[#10120f]">
               <video ref={videoRef} className="hidden" />
-              <canvas ref={canvasRef} className="aspect-video w-full object-cover" />
+              <canvas ref={canvasRef} className="w-full object-cover" style={{ aspectRatio: canvasRatio }} />
               <div className="absolute left-3 top-3 rounded bg-black/70 px-2 py-1 text-xs font-semibold text-white">{cameraStatus}</div>
               <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 0 9999px ${jds.score >= 40 ? "rgba(255,140,0,0.12)" : "transparent"}` }} />
             </div>
