@@ -10,6 +10,7 @@ export type DrowsinessMetrics = {
   eyeClosureRatio: number;
   mar: number;
   perclos: number;
+  observedSeconds: number;
   blinkRate: number;
   blinkDuration: number;
   longEyeClosure: boolean;

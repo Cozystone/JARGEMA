@@ -19,6 +19,10 @@ export class PERCLOSTracker {
   getConsecutiveClosed() {
     return this.consecutiveClosed;
   }
+
+  getObservedSeconds(fps = 30) {
+    return this.frames.length / fps;
+  }
 }
 
 export class BlinkTracker {

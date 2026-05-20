@@ -2,13 +2,20 @@ import { clamp } from "./geometry";
 import type { DrowsinessMetrics, JdsLevel, JdsResult } from "./types";
 
 export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
+  if (metrics.observedSeconds < 2 || metrics.baselineEAR === 0) {
+    return describeJDS(0);
+  }
+
   let score = 0;
 
-  score += Math.min(metrics.perclos * 1.35, 40);
+  const perclosWeight = metrics.observedSeconds < 10 ? 0.55 : metrics.observedSeconds < 20 ? 0.85 : 1.15;
+  score += Math.min(metrics.perclos * perclosWeight, 32);
 
-  if (metrics.blinkRate < 8 && !metrics.longEyeClosure) score += 10;
-  else if (metrics.blinkRate < 12 && !metrics.longEyeClosure) score += 6;
-  else if (metrics.blinkRate > 30) score += 14;
+  if (metrics.observedSeconds >= 25 && !metrics.longEyeClosure && metrics.eyeClosureRatio < 0.45) {
+    if (metrics.blinkRate < 5) score += 6;
+    else if (metrics.blinkRate < 8) score += 3;
+  }
+  if (metrics.blinkRate > 35) score += 10;
 
   if (metrics.microsleepDuration > 3000) score += 34;
   else if (metrics.microsleepDuration > 1800) score += 26;
@@ -17,18 +24,18 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
 
   if (metrics.yawnDetected) score += 15;
 
-  if (metrics.headPitch > 24) score += 14;
-  else if (metrics.headPitch > 14) score += 8;
-  if (metrics.headDrop > 22) score += 22;
-  else if (metrics.headDrop > 14) score += 14;
-  else if (metrics.headDrop > 8) score += 7;
+  if (metrics.headPitch > 28) score += 10;
+  else if (metrics.headPitch > 18) score += 5;
+  if (metrics.headDrop > 24) score += 18;
+  else if (metrics.headDrop > 16) score += 10;
+  else if (metrics.headDrop > 10) score += 4;
   if (metrics.nodDetected) score += 18;
   if (metrics.gradualHeadDrop) score += 12;
   if (Math.abs(metrics.headRoll) > 15) score += 4;
 
   if (metrics.eyeClosureRatio > 0.9) score += 26;
   else if (metrics.eyeClosureRatio > 0.75) score += 18;
-  else if (metrics.eyeClosureRatio > 0.55) score += 10;
+  else if (metrics.eyeClosureRatio > 0.62) score += 8;
 
   if (metrics.consecutiveClosed > 120) score += 18;
   else if (metrics.consecutiveClosed > 75) score += 12;
@@ -36,6 +43,17 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
 
   if (metrics.microsleepDuration > 2500 && metrics.eyeClosureRatio > 0.8) score += 14;
   if (metrics.gazeDown && metrics.eyeClosureRatio > 0.55) score += 8;
+
+  const looksAwake =
+    metrics.observedSeconds >= 3 &&
+    metrics.eyeClosureRatio < 0.35 &&
+    metrics.perclos < 12 &&
+    metrics.microsleepDuration < 500 &&
+    metrics.headDrop < 8 &&
+    !metrics.nodDetected &&
+    !metrics.gradualHeadDrop;
+
+  if (looksAwake) score *= 0.35;
 
   return describeJDS(Math.round(clamp(score, 0, 100)));
 }
