@@ -494,6 +494,10 @@ export function JargemaApp() {
         setSnapshotStatus("스냅샷 업로드 실패");
         return;
       }
+      const data = (await response.json()) as { snapshot?: Snapshot };
+      if (data.snapshot) {
+        setFeed((current) => [data.snapshot as Snapshot, ...current.filter((snapshot) => snapshot.id !== data.snapshot?.id)].slice(0, 20));
+      }
       setSnapshotStatus("스냅샷 업로드 완료. 30초 쿨타임");
       await fetchFeed();
     } finally {
