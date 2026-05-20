@@ -27,6 +27,11 @@ type Snapshot = {
   reactions: Record<string, number>;
 };
 
+type CameraDevice = {
+  deviceId: string;
+  label: string;
+};
+
 const fallbackMetrics: DrowsinessMetrics = {
   avgEAR: 0,
   mar: 0,
@@ -59,6 +64,8 @@ export function JargemaApp() {
   const [password, setPassword] = useState("jargema1234");
   const [authError, setAuthError] = useState("");
   const [cameraStatus, setCameraStatus] = useState("카메라 대기 중");
+  const [cameraDevices, setCameraDevices] = useState<CameraDevice[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState("");
   const [metrics, setMetrics] = useState<DrowsinessMetrics>(fallbackMetrics);
   const [jds, setJds] = useState<JdsResult>(describeJDS(0));
   const [autoUpload, setAutoUpload] = useState(false);
@@ -111,28 +118,72 @@ export function JargemaApp() {
       return;
     }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false,
-      });
-      const video = videoRef.current;
-      if (!video) return;
-      video.srcObject = stream;
-      video.muted = true;
-      video.playsInline = true;
-      await video.play();
-      setCameraStatus("감지 실행 중");
-      await startFaceMesh(video);
+      const stream = await openCameraStream();
+      await attachCameraStream(stream);
+      await loadCameraDevices();
     } catch (error) {
       const name = error instanceof DOMException ? error.name : "CameraError";
       const message =
         name === "NotAllowedError"
           ? "카메라 권한이 차단되었습니다. 주소창 왼쪽 권한 아이콘에서 허용으로 바꾸세요."
           : name === "NotFoundError"
-            ? "사용 가능한 카메라를 찾지 못했습니다."
+            ? "브라우저가 카메라를 찾지 못했습니다. 다른 앱에서 카메라를 사용 중인지 확인한 뒤 다시 시도하세요."
+            : name === "NotReadableError"
+              ? "카메라가 다른 앱에서 사용 중이거나 OS 권한이 꺼져 있습니다."
             : `카메라를 시작하지 못했습니다. (${name})`;
       setCameraStatus(message);
     }
+  }
+
+  async function openCameraStream() {
+    const attempts: MediaStreamConstraints[] = selectedCameraId
+      ? [
+          {
+            video: { deviceId: { exact: selectedCameraId }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          },
+          { video: { deviceId: selectedCameraId }, audio: false },
+          { video: true, audio: false },
+        ]
+      : [
+          { video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+          { video: true, audio: false },
+        ];
+
+    let lastError: unknown;
+    for (const constraints of attempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  async function attachCameraStream(stream: MediaStream) {
+    const video = videoRef.current;
+    if (!video) return;
+    const previous = video.srcObject;
+    if (previous instanceof MediaStream) {
+      previous.getTracks().forEach((track) => track.stop());
+    }
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    await video.play();
+    setCameraStatus("감지 실행 중");
+    await startFaceMesh(video);
+  }
+
+  async function loadCameraDevices() {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices
+      .filter((device) => device.kind === "videoinput")
+      .map((device, index) => ({ deviceId: device.deviceId, label: device.label || `카메라 ${index + 1}` }));
+    setCameraDevices(cameras);
+    if (!selectedCameraId && cameras[0]) setSelectedCameraId(cameras[0].deviceId);
   }
 
   async function startFaceMesh(video: HTMLVideoElement) {
@@ -351,6 +402,19 @@ export function JargemaApp() {
               <button onClick={startCamera} className="flex h-12 items-center justify-center gap-2 rounded-md bg-[#161712] px-4 font-bold text-white">
                 <Camera size={18} /> 감지 시작
               </button>
+              {cameraDevices.length > 0 && (
+                <select
+                  value={selectedCameraId}
+                  onChange={(event) => setSelectedCameraId(event.target.value)}
+                  className="h-11 rounded-md border border-black/15 bg-white px-3 text-sm font-semibold"
+                >
+                  {cameraDevices.map((device) => (
+                    <option key={device.deviceId} value={device.deviceId}>
+                      {device.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{alertText}</p>
             </div>
           </div>
