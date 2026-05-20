@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Camera, DoorOpen, Eye, Radio, Settings, ShieldCheck, Users, Zap } from "lucide-react";
 import { calculateEAR } from "@/lib/drowsiness/ear";
@@ -392,7 +392,10 @@ export function JargemaApp() {
     setCameraStatus("감지 실행 중");
     void publishDetection(nextJds);
     if (soundOn && nextJds.score >= 40) beep(nextJds.score);
-    if (autoUpload && nextJds.score >= 80) void uploadSnapshot(nextJds.score);
+    if (nextJds.score >= 80) {
+      if (autoUpload) void uploadSnapshot(nextJds.score);
+      else setSnapshotStatus("ASLEEP 감지됨. 자동 업로드가 꺼져 있습니다.");
+    }
   }
 
   function updateBaselineEAR(avgEAR: number) {
@@ -449,14 +452,10 @@ export function JargemaApp() {
     }, 120);
   }
 
-  async function uploadSnapshot(score: number) {
+  async function uploadSnapshot(score: number, options: { manual?: boolean } = {}) {
     const now = Date.now();
-    if (!autoUpload) {
+    if (!autoUpload && !options.manual) {
       setSnapshotStatus("자동 업로드가 꺼져 있습니다.");
-      return;
-    }
-    if (!user) {
-      setSnapshotStatus("스냅샷 업로드는 로그인 후 동작합니다.");
       return;
     }
     if (uploadInFlightRef.current) return;
@@ -478,6 +477,21 @@ export function JargemaApp() {
       ctx.fillText(`JARGEMA | JDS: ${score} | ${new Date().toLocaleString("ko-KR")}`, 12, canvas.height - 16);
     }
     const imageUrl = canvas.toDataURL("image/jpeg", 0.82);
+    const localSnapshot: Snapshot = {
+      id: `local_${now}`,
+      username: user?.username ?? "guest",
+      imageUrl,
+      jdsScore: score,
+      caption: captions[Math.floor(Math.random() * captions.length)],
+      createdAt: new Date().toISOString(),
+      reactions: {},
+    };
+    setFeed((current) => mergeSnapshots([localSnapshot], current));
+    if (!user) {
+      setSnapshotStatus("로컬 피드에 표시됨. 서버 업로드는 로그인 후 동작합니다.");
+      uploadInFlightRef.current = false;
+      return;
+    }
     try {
       const response = await fetch("/api/snapshots", {
         method: "POST",
@@ -485,18 +499,18 @@ export function JargemaApp() {
         body: JSON.stringify({
           imageUrl,
           jdsScore: score,
-          caption: captions[Math.floor(Math.random() * captions.length)],
+          caption: localSnapshot.caption,
           isPublic: true,
           classCode: room?.code,
         }),
       });
       if (!response.ok) {
-        setSnapshotStatus("스냅샷 업로드 실패");
+        setSnapshotStatus("로컬 피드에 표시됨. 서버 업로드는 실패했습니다.");
         return;
       }
       const data = (await response.json()) as { snapshot?: Snapshot };
       if (data.snapshot) {
-        setFeed((current) => [data.snapshot as Snapshot, ...current.filter((snapshot) => snapshot.id !== data.snapshot?.id)].slice(0, 20));
+        setFeed((current) => mergeSnapshots([data.snapshot as Snapshot], current.filter((snapshot) => snapshot.id !== localSnapshot.id)));
       }
       setSnapshotStatus("스냅샷 업로드 완료. 30초 쿨타임");
       await fetchFeed();
@@ -527,17 +541,17 @@ export function JargemaApp() {
     if (response.ok) setRoom(data.classRoom);
   }
 
-  async function refreshRoom(code: string) {
+  const refreshRoom = useCallback(async (code: string) => {
     const response = await fetch(`/api/classes/${code}`);
     const data = await response.json();
     if (response.ok) setRoom(data.classRoom);
-  }
+  }, []);
 
-  async function fetchFeed() {
+  const fetchFeed = useCallback(async () => {
     const response = await fetch("/api/feed");
     const data = await response.json();
-    if (response.ok) setFeed(data.snapshots);
-  }
+    if (response.ok) setFeed((current) => mergeSnapshots(current, data.snapshots));
+  }, []);
 
   useEffect(() => {
     fetchFeed();
@@ -546,7 +560,7 @@ export function JargemaApp() {
       if (room?.code) refreshRoom(room.code);
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [room?.code]);
+  }, [fetchFeed, refreshRoom, room?.code]);
 
   return (
     <main className="min-h-screen bg-[#f6f7f2] text-[#161712]">
@@ -685,6 +699,9 @@ export function JargemaApp() {
               <span>스냅샷 자동 업로드</span>
               <input type="checkbox" checked={autoUpload} onChange={(event) => setAutoUpload(event.target.checked)} />
             </label>
+            <button onClick={() => uploadSnapshot(jds.score, { manual: true })} className="mt-3 h-11 w-full rounded-md bg-[#161712] px-3 text-sm font-bold text-white">
+              지금 스냅샷 찍기
+            </button>
             <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">{snapshotStatus}</p>
             <label className="flex items-center justify-between py-3 font-bold">
               <span>경고음</span>
@@ -715,6 +732,18 @@ export function JargemaApp() {
       </div>
     </main>
   );
+}
+
+function mergeSnapshots(primary: Snapshot[], secondary: Snapshot[]) {
+  const seen = new Set<string>();
+  return [...primary, ...secondary]
+    .filter((snapshot) => {
+      if (seen.has(snapshot.id)) return false;
+      seen.add(snapshot.id);
+      return true;
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20);
 }
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
