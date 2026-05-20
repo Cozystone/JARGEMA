@@ -392,10 +392,19 @@ export function JargemaApp() {
     setCameraStatus("감지 실행 중");
     void publishDetection(nextJds);
     if (soundOn && nextJds.score >= 40) beep(nextJds.score);
-    if (nextJds.score >= 80) {
+    if (shouldAutoCapture(nextJds.score, nextMetrics)) {
       if (autoUpload) void uploadSnapshot(nextJds.score);
-      else setSnapshotStatus("ASLEEP 감지됨. 자동 업로드가 꺼져 있습니다.");
+      else setSnapshotStatus("촬영 조건 도달. 자동 촬영이 꺼져 있습니다.");
     }
+  }
+
+  function shouldAutoCapture(score: number, nextMetrics: DrowsinessMetrics) {
+    if (score >= 80) return true;
+    if (score >= 75 && nextMetrics.eyeClosureRatio > 0.7) return true;
+    if (score >= 70 && nextMetrics.microsleepDuration > 1800) return true;
+    if (score >= 70 && nextMetrics.nodDetected && nextMetrics.eyeClosureRatio > 0.45) return true;
+    if (nextMetrics.microsleepDuration > 2800 && nextMetrics.eyeClosureRatio > 0.8) return true;
+    return false;
   }
 
   function updateBaselineEAR(avgEAR: number) {
@@ -452,10 +461,10 @@ export function JargemaApp() {
     }, 120);
   }
 
-  async function uploadSnapshot(score: number, options: { manual?: boolean } = {}) {
+  async function uploadSnapshot(score: number) {
     const now = Date.now();
-    if (!autoUpload && !options.manual) {
-      setSnapshotStatus("자동 업로드가 꺼져 있습니다.");
+    if (!autoUpload) {
+      setSnapshotStatus("자동 촬영이 꺼져 있습니다.");
       return;
     }
     if (uploadInFlightRef.current) return;
@@ -463,19 +472,11 @@ export function JargemaApp() {
       setSnapshotStatus(`쿨타임 ${Math.ceil((30_000 - (now - lastUploadAt)) / 1000)}초 남음`);
       return;
     }
-    const canvas = canvasRef.current;
+    const canvas = createCleanSnapshotCanvas(score);
     if (!canvas) return;
     uploadInFlightRef.current = true;
     setLastUploadAt(now);
     setSnapshotStatus("스냅샷 업로드 중");
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.fillStyle = "rgba(255, 0, 0, 0.72)";
-      ctx.fillRect(0, canvas.height - 42, canvas.width, 42);
-      ctx.fillStyle = "white";
-      ctx.font = "bold 16px monospace";
-      ctx.fillText(`JARGEMA | JDS: ${score} | ${new Date().toLocaleString("ko-KR")}`, 12, canvas.height - 16);
-    }
     const imageUrl = canvas.toDataURL("image/jpeg", 0.82);
     const localSnapshot: Snapshot = {
       id: `local_${now}`,
@@ -517,6 +518,35 @@ export function JargemaApp() {
     } finally {
       uploadInFlightRef.current = false;
     }
+  }
+
+  function createCleanSnapshotCanvas(score: number) {
+    const video = videoRef.current;
+    if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    const sourceWidth = video.videoWidth || 640;
+    const sourceHeight = video.videoHeight || 480;
+    const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    const dx = (canvas.width - drawWidth) / 2;
+    const dy = (canvas.height - drawHeight) / 2;
+
+    ctx.fillStyle = "#10120f";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, dx, dy, drawWidth, drawHeight);
+    ctx.fillStyle = "rgba(255, 0, 0, 0.72)";
+    ctx.fillRect(0, canvas.height - 42, canvas.width, 42);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 16px monospace";
+    ctx.fillText(`JARGEMA | JDS: ${score} | ${new Date().toLocaleString("ko-KR")}`, 12, canvas.height - 16);
+    return canvas;
   }
 
   async function createRoom() {
@@ -696,12 +726,9 @@ export function JargemaApp() {
           <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
             <h2 className="mb-3 text-xl font-black">설정</h2>
             <label className="flex items-center justify-between border-b border-black/10 py-3 font-bold">
-              <span>스냅샷 자동 업로드</span>
+              <span>스냅샷 자동 촬영</span>
               <input type="checkbox" checked={autoUpload} onChange={(event) => setAutoUpload(event.target.checked)} />
             </label>
-            <button onClick={() => uploadSnapshot(jds.score, { manual: true })} className="mt-3 h-11 w-full rounded-md bg-[#161712] px-3 text-sm font-bold text-white">
-              지금 스냅샷 찍기
-            </button>
             <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">{snapshotStatus}</p>
             <label className="flex items-center justify-between py-3 font-bold">
               <span>경고음</span>
