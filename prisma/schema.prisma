@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique @db.VarChar(20)
+  email        String        @unique
+  passwordHash String
+  displayName  String?
+  createdAt    DateTime      @default(now())
+  classes      ClassMember[]
+  sessions     Session[]
+  snapshots    Snapshot[]
+  reactions    Reaction[]
+}
+
+model ClassRoom {
+  id        String        @id @default(cuid())
+  code      String        @unique @db.VarChar(8)
+  name      String
+  hostId    String
+  createdAt DateTime      @default(now())
+  members   ClassMember[]
+  sessions  Session[]
+}
+
+model ClassMember {
+  id        String    @id @default(cuid())
+  classId   String
+  classRoom ClassRoom @relation(fields: [classId], references: [id])
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  role      String    @default("student")
+  joinedAt  DateTime  @default(now())
+
+  @@unique([classId, userId])
+}
+
+model Session {
+  id              String     @id @default(cuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id])
+  classId         String?
+  classRoom       ClassRoom? @relation(fields: [classId], references: [id])
+  startedAt       DateTime   @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  avgJDS          Float?
+  maxJDS          Int?
+  totalYawns      Int        @default(0)
+  snapshotCount   Int        @default(0)
+  jdsTimeline     Json?
+}
+
+model Snapshot {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  imageUrl  String
+  jdsScore  Int
+  caption   String?
+  isPublic  Boolean    @default(false)
+  classCode String?
+  perclos   Float?
+  blinkRate Float?
+  headPitch Float?
+  createdAt DateTime   @default(now())
+  reactions Reaction[]
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model Reaction {
+  id         String   @id @default(cuid())
+  snapshotId String
+  snapshot   Snapshot @relation(fields: [snapshotId], references: [id])
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  emoji      String
+  createdAt  DateTime @default(now())
+
+  @@unique([snapshotId, userId])
+}
