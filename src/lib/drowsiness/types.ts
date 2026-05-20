@@ -12,8 +12,15 @@ export type DrowsinessMetrics = {
   perclos: number;
   blinkRate: number;
   blinkDuration: number;
+  longEyeClosure: boolean;
+  microsleepDuration: number;
   yawnDetected: boolean;
   headPitch: number;
+  baselineHeadPitch: number;
+  headDrop: number;
+  headDropVelocity: number;
+  nodDetected: boolean;
+  gradualHeadDrop: boolean;
   headRoll: number;
   gazeDown: boolean;
   consecutiveClosed: number;

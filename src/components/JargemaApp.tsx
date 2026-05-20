@@ -7,6 +7,7 @@ import { calculateEAR } from "@/lib/drowsiness/ear";
 import { clamp } from "@/lib/drowsiness/geometry";
 import { calculateJDS, describeJDS } from "@/lib/drowsiness/jds";
 import { calculateMAR, YawnTracker } from "@/lib/drowsiness/mar";
+import { HeadMotionTracker } from "@/lib/drowsiness/headmotion";
 import { BlinkTracker, PERCLOSTracker } from "@/lib/drowsiness/perclos";
 import { estimateHeadPose } from "@/lib/drowsiness/headpose";
 import type { DrowsinessMetrics, JdsResult, Landmark } from "@/lib/drowsiness/types";
@@ -47,8 +48,15 @@ const fallbackMetrics: DrowsinessMetrics = {
   perclos: 0,
   blinkRate: 0,
   blinkDuration: 0,
+  longEyeClosure: false,
+  microsleepDuration: 0,
   yawnDetected: false,
   headPitch: 0,
+  baselineHeadPitch: 0,
+  headDrop: 0,
+  headDropVelocity: 0,
+  nodDetected: false,
+  gradualHeadDrop: false,
   headRoll: 0,
   gazeDown: false,
   consecutiveClosed: 0,
@@ -72,6 +80,7 @@ export function JargemaApp() {
     perclos: new PERCLOSTracker(900),
     blink: new BlinkTracker(),
     yawn: new YawnTracker(),
+    head: new HeadMotionTracker(),
   });
 
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -341,6 +350,7 @@ export function JargemaApp() {
     const avgEAR = (earLeft + earRight) / 2;
     const mar = calculateMAR(landmarks);
     const headPose = estimateHeadPose(landmarks);
+    const headMotion = trackersRef.current.head.update(headPose.pitch);
     const baselineEAR = updateBaselineEAR(avgEAR);
     const closedThreshold = baselineEAR > 0 ? Math.max(0.12, baselineEAR * 0.72) : 0.2;
     const fullClosedThreshold = baselineEAR > 0 ? Math.max(0.08, baselineEAR * 0.48) : 0.13;
@@ -361,10 +371,17 @@ export function JargemaApp() {
       perclos: trackers.perclos.getPerclos(),
       blinkRate: trackers.blink.getRate(),
       blinkDuration: trackers.blink.getLastDuration(),
+      longEyeClosure: trackers.blink.isLongClosure(),
+      microsleepDuration: trackers.blink.getMicrosleepDuration(),
       yawnDetected,
       headPitch: headPose.pitch,
+      baselineHeadPitch: headMotion.baselinePitch,
+      headDrop: headMotion.headDrop,
+      headDropVelocity: headMotion.velocity,
+      nodDetected: headMotion.nodDetected,
+      gradualHeadDrop: headMotion.gradualDrop,
       headRoll: headPose.roll,
-      gazeDown: headPose.pitch > 10,
+      gazeDown: headMotion.headDrop > 8 || headPose.pitch > 14,
       consecutiveClosed: trackers.perclos.getConsecutiveClosed(),
     };
     const nextJds = calculateJDS(nextMetrics);
@@ -398,6 +415,7 @@ export function JargemaApp() {
       perclos: new PERCLOSTracker(900),
       blink: new BlinkTracker(),
       yawn: new YawnTracker(),
+      head: new HeadMotionTracker(),
     };
     setMetrics(fallbackMetrics);
     setJds(describeJDS(0));
@@ -594,7 +612,10 @@ export function JargemaApp() {
             <Metric label="기준 EAR" value={metrics.baselineEAR ? metrics.baselineEAR.toFixed(3) : "측정 중"} icon={<Eye size={18} />} />
             <Metric label="PERCLOS" value={`${metrics.perclos.toFixed(1)}%`} icon={<Radio size={18} />} />
             <Metric label="눈 감김" value={`${Math.round(metrics.eyeClosureRatio * 100)}%`} icon={<Zap size={18} />} />
-            <Metric label="고개" value={`${metrics.headPitch.toFixed(1)}deg`} icon={<Settings size={18} />} />
+            <Metric label="눈 지속" value={`${Math.round(metrics.microsleepDuration)}ms`} icon={<Eye size={18} />} />
+            <Metric label="고개 하강" value={`${metrics.headDrop.toFixed(1)}deg`} icon={<Settings size={18} />} />
+            <Metric label="고개 속도" value={`${metrics.headDropVelocity.toFixed(1)}deg/s`} icon={<Settings size={18} />} />
+            <Metric label="고개 패턴" value={metrics.nodDetected ? "훅 떨어짐" : metrics.gradualHeadDrop ? "점진 하강" : "안정"} icon={<Settings size={18} />} />
           </div>
 
           <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">

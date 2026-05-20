@@ -25,16 +25,25 @@ export class BlinkTracker {
   private blinkTimestamps: number[] = [];
   private closedStartedAt = 0;
   private lastDuration = 0;
+  private microsleepDuration = 0;
+  private longClosure = false;
 
   update(isClosed: boolean, now = Date.now()) {
     if (isClosed && !this.closedStartedAt) {
       this.closedStartedAt = now;
     }
 
+    if (isClosed && this.closedStartedAt) {
+      this.microsleepDuration = now - this.closedStartedAt;
+      this.longClosure = this.microsleepDuration >= 700;
+    }
+
     if (!isClosed && this.closedStartedAt) {
       this.lastDuration = now - this.closedStartedAt;
       this.closedStartedAt = 0;
-      if (this.lastDuration >= 80) this.blinkTimestamps.push(now);
+      this.microsleepDuration = 0;
+      this.longClosure = this.lastDuration >= 700;
+      if (this.lastDuration >= 80 && this.lastDuration <= 450) this.blinkTimestamps.push(now);
     }
 
     const cutoff = now - 60_000;
@@ -47,5 +56,13 @@ export class BlinkTracker {
 
   getLastDuration() {
     return this.closedStartedAt ? Date.now() - this.closedStartedAt : this.lastDuration;
+  }
+
+  isLongClosure() {
+    return this.longClosure || this.getLastDuration() >= 700;
+  }
+
+  getMicrosleepDuration() {
+    return this.closedStartedAt ? Date.now() - this.closedStartedAt : this.microsleepDuration;
   }
 }
