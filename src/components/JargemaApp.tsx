@@ -77,6 +77,7 @@ export function JargemaApp() {
   const drawTransformRef = useRef<DrawTransform>({ sourceX: 0, sourceY: 0, scale: 1 });
   const baselineRef = useRef({ ear: 0, samples: [] as number[] });
   const uploadInFlightRef = useRef(false);
+  const lastUploadAtRef = useRef(0);
   const trackersRef = useRef({
     perclos: new PERCLOSTracker(900),
     blink: new BlinkTracker(),
@@ -104,7 +105,6 @@ export function JargemaApp() {
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<ClassRoom | null>(null);
   const [feed, setFeed] = useState<Snapshot[]>([]);
-  const [lastUploadAt, setLastUploadAt] = useState(0);
 
   const alertText = useMemo(() => {
     if (jds.score >= 80) return "촬영 조건 도달. 업로드 동의가 켜져 있으면 피드로 전송됩니다.";
@@ -393,7 +393,10 @@ export function JargemaApp() {
     void publishDetection(nextJds);
     if (soundOn && nextJds.score >= 40) beep(nextJds.score);
     if (shouldAutoCapture(nextJds.score, nextMetrics)) {
-      if (autoUpload) void uploadSnapshot(nextJds.score);
+      if (autoUpload) {
+        setSnapshotStatus("자동 촬영 조건 도달. 피드에 추가 중");
+        void uploadSnapshot(nextJds.score);
+      }
       else setSnapshotStatus("촬영 조건 도달. 자동 촬영이 꺼져 있습니다.");
     }
   }
@@ -468,15 +471,18 @@ export function JargemaApp() {
       return;
     }
     if (uploadInFlightRef.current) return;
-    if (now - lastUploadAt < 30_000) {
-      setSnapshotStatus(`쿨타임 ${Math.ceil((30_000 - (now - lastUploadAt)) / 1000)}초 남음`);
+    if (now - lastUploadAtRef.current < 30_000) {
+      setSnapshotStatus(`쿨타임 ${Math.ceil((30_000 - (now - lastUploadAtRef.current)) / 1000)}초 남음`);
       return;
     }
     const canvas = createCleanSnapshotCanvas(score);
-    if (!canvas) return;
+    if (!canvas) {
+      setSnapshotStatus("스냅샷 캡처 실패. 카메라 프레임을 기다리는 중");
+      return;
+    }
     uploadInFlightRef.current = true;
-    setLastUploadAt(now);
-    setSnapshotStatus("스냅샷 업로드 중");
+    lastUploadAtRef.current = now;
+    setSnapshotStatus("피드에 스냅샷 추가됨. 서버 업로드 중");
     const imageUrl = canvas.toDataURL("image/jpeg", 0.82);
     const localSnapshot: Snapshot = {
       id: `local_${now}`,
@@ -514,7 +520,6 @@ export function JargemaApp() {
         setFeed((current) => mergeSnapshots([data.snapshot as Snapshot], current.filter((snapshot) => snapshot.id !== localSnapshot.id)));
       }
       setSnapshotStatus("스냅샷 업로드 완료. 30초 쿨타임");
-      await fetchFeed();
     } finally {
       uploadInFlightRef.current = false;
     }
@@ -584,9 +589,11 @@ export function JargemaApp() {
   }, []);
 
   useEffect(() => {
-    fetchFeed();
+    queueMicrotask(() => {
+      void fetchFeed();
+    });
     const timer = window.setInterval(() => {
-      fetchFeed();
+      void fetchFeed();
       if (room?.code) refreshRoom(room.code);
     }, 5000);
     return () => window.clearInterval(timer);
