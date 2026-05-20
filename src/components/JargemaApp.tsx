@@ -87,10 +87,17 @@ export function JargemaApp() {
     });
     const data = await response.json();
     if (!response.ok) {
-      setAuthError(data.error ?? "인증 실패");
+      setAuthError(data.message ?? authErrorMessage(data.error));
       return;
     }
     setUser(data.user);
+  }
+
+  function authErrorMessage(error?: string) {
+    if (error === "user_exists") return "이미 사용 중인 이메일 또는 닉네임입니다.";
+    if (error === "invalid_input") return "이메일, 닉네임, 비밀번호를 확인해주세요.";
+    if (error === "invalid_credentials") return "이메일 또는 비밀번호가 맞지 않습니다.";
+    return "인증에 실패했습니다.";
   }
 
   async function startCamera() {

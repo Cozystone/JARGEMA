@@ -5,15 +5,20 @@ import { setSessionCookie, signSession } from "@/lib/server/session";
 
 const schema = z.object({
   email: z.email(),
-  password: z.string().min(1),
+  password: z.string().min(1, "비밀번호를 입력해주세요."),
 });
 
 export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "invalid_input", message: parsed.error.issues[0]?.message ?? "입력값을 확인해주세요." },
+      { status: 400 },
+    );
+  }
 
   const user = await verifyUser(parsed.data.email, parsed.data.password);
-  if (!user) return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "invalid_credentials", message: "이메일 또는 비밀번호가 맞지 않습니다." }, { status: 401 });
 
   await setSessionCookie(await signSession({ id: user.id, username: user.username }));
   return NextResponse.json({ user: publicUser(user) });
