@@ -64,6 +64,7 @@ export function JargemaApp() {
   const [password, setPassword] = useState("jargema1234");
   const [authError, setAuthError] = useState("");
   const [cameraStatus, setCameraStatus] = useState("카메라 대기 중");
+  const [cameraDiagnostic, setCameraDiagnostic] = useState("");
   const [cameraDevices, setCameraDevices] = useState<CameraDevice[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [metrics, setMetrics] = useState<DrowsinessMetrics>(fallbackMetrics);
@@ -109,6 +110,7 @@ export function JargemaApp() {
 
   async function startCamera() {
     setCameraStatus("권한 요청 중");
+    setCameraDiagnostic("");
     if (!window.isSecureContext) {
       setCameraStatus("카메라는 HTTPS 또는 localhost에서만 허용됩니다.");
       return;
@@ -132,6 +134,36 @@ export function JargemaApp() {
               ? "카메라가 다른 앱에서 사용 중이거나 OS 권한이 꺼져 있습니다."
             : `카메라를 시작하지 못했습니다. (${name})`;
       setCameraStatus(message);
+      await runCameraDiagnostics(name);
+    }
+  }
+
+  async function runCameraDiagnostics(errorName = "ManualCheck") {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setCameraDiagnostic("장치 목록 API를 지원하지 않는 브라우저입니다.");
+      return;
+    }
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter((device) => device.kind === "videoinput");
+      const permission =
+        "permissions" in navigator
+          ? await navigator.permissions
+              .query({ name: "camera" as PermissionName })
+              .then((result) => result.state)
+              .catch(() => "unknown")
+          : "unknown";
+
+      setCameraDevices(
+        cameras.map((device, index) => ({
+          deviceId: device.deviceId,
+          label: device.label || `카메라 ${index + 1}`,
+        })),
+      );
+      setCameraDiagnostic(`진단: ${cameras.length}개 카메라 감지, 권한 ${permission}, 오류 ${errorName}`);
+    } catch {
+      setCameraDiagnostic("카메라 진단을 실행하지 못했습니다.");
     }
   }
 
@@ -415,6 +447,10 @@ export function JargemaApp() {
                   ))}
                 </select>
               )}
+              <button onClick={() => runCameraDiagnostics()} className="h-11 rounded-md border border-black/20 px-3 text-sm font-bold">
+                카메라 진단
+              </button>
+              {cameraDiagnostic && <p className="rounded-md bg-[#fff4d6] p-3 text-xs font-bold text-[#6a5200]">{cameraDiagnostic}</p>}
               <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{alertText}</p>
             </div>
           </div>

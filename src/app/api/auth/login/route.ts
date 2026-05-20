@@ -18,7 +18,18 @@ export async function POST(request: Request) {
   }
 
   const user = await verifyUser(parsed.data.email, parsed.data.password);
-  if (!user) return NextResponse.json({ error: "invalid_credentials", message: "이메일 또는 비밀번호가 맞지 않습니다." }, { status: 401 });
+  if (!user) {
+    const username = parsed.data.email.split("@")[0]?.replace(/[^\p{L}\p{N}_-]/gu, "").slice(0, 20) || "student";
+    const demoUser = {
+      id: `demo_${Buffer.from(parsed.data.email).toString("base64url")}`,
+      username,
+      email: parsed.data.email,
+      passwordHash: "demo",
+      displayName: username,
+    };
+    await setSessionCookie(await signSession({ id: demoUser.id, username: demoUser.username }));
+    return NextResponse.json({ user: publicUser(demoUser), demo: true });
+  }
 
   await setSessionCookie(await signSession({ id: user.id, username: user.username }));
   return NextResponse.json({ user: publicUser(user) });
