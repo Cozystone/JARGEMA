@@ -6,6 +6,8 @@ export type Landmark = {
 
 export type DrowsinessMetrics = {
   avgEAR: number;
+  baselineEAR: number;
+  eyeClosureRatio: number;
   mar: number;
   perclos: number;
   blinkRate: number;

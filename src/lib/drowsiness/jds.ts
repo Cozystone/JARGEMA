@@ -21,14 +21,16 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
   else if (metrics.headPitch > 14) score += 8;
   if (Math.abs(metrics.headRoll) > 15) score += 4;
 
-  if (metrics.avgEAR > 0 && metrics.avgEAR < 0.13) score += 18;
-  else if (metrics.avgEAR > 0 && metrics.avgEAR < 0.17) score += 10;
+  if (metrics.eyeClosureRatio > 0.9) score += 26;
+  else if (metrics.eyeClosureRatio > 0.75) score += 18;
+  else if (metrics.eyeClosureRatio > 0.55) score += 10;
 
   if (metrics.consecutiveClosed > 120) score += 18;
   else if (metrics.consecutiveClosed > 75) score += 12;
   else if (metrics.consecutiveClosed > 45) score += 6;
 
-  if (metrics.gazeDown && metrics.avgEAR < 0.2) score += 8;
+  if (metrics.blinkDuration > 2500 && metrics.eyeClosureRatio > 0.8) score += 10;
+  if (metrics.gazeDown && metrics.eyeClosureRatio > 0.55) score += 8;
 
   return describeJDS(Math.round(clamp(score, 0, 100)));
 }

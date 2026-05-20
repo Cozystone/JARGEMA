@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Camera, DoorOpen, Eye, Radio, Settings, ShieldCheck, Users, Zap } from "lucide-react";
 import { calculateEAR } from "@/lib/drowsiness/ear";
+import { clamp } from "@/lib/drowsiness/geometry";
 import { calculateJDS, describeJDS } from "@/lib/drowsiness/jds";
 import { calculateMAR, YawnTracker } from "@/lib/drowsiness/mar";
 import { BlinkTracker, PERCLOSTracker } from "@/lib/drowsiness/perclos";
@@ -32,8 +33,16 @@ type CameraDevice = {
   label: string;
 };
 
+type DrawTransform = {
+  sourceX: number;
+  sourceY: number;
+  scale: number;
+};
+
 const fallbackMetrics: DrowsinessMetrics = {
   avgEAR: 0,
+  baselineEAR: 0,
+  eyeClosureRatio: 0,
   mar: 0,
   perclos: 0,
   blinkRate: 0,
@@ -56,6 +65,9 @@ export function JargemaApp() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshLoopRef = useRef<number | null>(null);
   const canvasRatioRef = useRef("16 / 9");
+  const drawTransformRef = useRef<DrawTransform>({ sourceX: 0, sourceY: 0, scale: 1 });
+  const baselineRef = useRef({ ear: 0, samples: [] as number[] });
+  const uploadInFlightRef = useRef(false);
   const trackersRef = useRef({
     perclos: new PERCLOSTracker(900),
     blink: new BlinkTracker(),
@@ -73,6 +85,7 @@ export function JargemaApp() {
   const [cameraDevices, setCameraDevices] = useState<CameraDevice[]>([]);
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [canvasRatio, setCanvasRatio] = useState("16 / 9");
+  const [snapshotStatus, setSnapshotStatus] = useState("스냅샷 대기 중");
   const [metrics, setMetrics] = useState<DrowsinessMetrics>(fallbackMetrics);
   const [jds, setJds] = useState<JdsResult>(describeJDS(0));
   const [autoUpload, setAutoUpload] = useState(false);
@@ -211,7 +224,7 @@ export function JargemaApp() {
     video.muted = true;
     video.playsInline = true;
     await video.play();
-    updateCanvasRatio(video.videoWidth || 16, video.videoHeight || 9);
+    updateCanvasRatio(16, 9);
     setCameraStatus("감지 실행 중");
     await startFaceMesh(video);
   }
@@ -265,10 +278,25 @@ export function JargemaApp() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    canvas.width = 1280;
+    canvas.height = 720;
     updateCanvasRatio(canvas.width, canvas.height);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#10120f";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const sourceWidth = video.videoWidth || 640;
+    const sourceHeight = video.videoHeight || 480;
+    const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    const dx = (canvas.width - drawWidth) / 2;
+    const dy = (canvas.height - drawHeight) / 2;
+    drawTransformRef.current = {
+      sourceX: dx,
+      sourceY: dy,
+      scale,
+    };
+    ctx.drawImage(video, dx, dy, drawWidth, drawHeight);
   }
 
   function updateCanvasRatio(width: number, height: number) {
@@ -295,8 +323,11 @@ export function JargemaApp() {
     for (const index of points) {
       const landmark = landmarks[index];
       if (!landmark) continue;
-      const x = landmark.x * canvas.width;
-      const y = landmark.y * canvas.height;
+      const sourceWidth = videoRef.current?.videoWidth || 640;
+      const sourceHeight = videoRef.current?.videoHeight || 480;
+      const transform = drawTransformRef.current;
+      const x = transform.sourceX + landmark.x * sourceWidth * transform.scale;
+      const y = transform.sourceY + landmark.y * sourceHeight * transform.scale;
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.stroke();
@@ -310,7 +341,12 @@ export function JargemaApp() {
     const avgEAR = (earLeft + earRight) / 2;
     const mar = calculateMAR(landmarks);
     const headPose = estimateHeadPose(landmarks);
-    const isClosed = avgEAR < 0.2;
+    const baselineEAR = updateBaselineEAR(avgEAR);
+    const closedThreshold = baselineEAR > 0 ? Math.max(0.12, baselineEAR * 0.72) : 0.2;
+    const fullClosedThreshold = baselineEAR > 0 ? Math.max(0.08, baselineEAR * 0.48) : 0.13;
+    const eyeClosureRatio =
+      baselineEAR > 0 ? clamp((baselineEAR - avgEAR) / Math.max(0.01, baselineEAR - fullClosedThreshold), 0, 1) : avgEAR < 0.2 ? 1 : 0;
+    const isClosed = avgEAR < closedThreshold || eyeClosureRatio > 0.62;
     const trackers = trackersRef.current;
 
     trackers.perclos.update(isClosed);
@@ -319,6 +355,8 @@ export function JargemaApp() {
 
     const nextMetrics: DrowsinessMetrics = {
       avgEAR,
+      baselineEAR,
+      eyeClosureRatio,
       mar,
       perclos: trackers.perclos.getPerclos(),
       blinkRate: trackers.blink.getRate(),
@@ -336,6 +374,34 @@ export function JargemaApp() {
     void publishDetection(nextJds);
     if (soundOn && nextJds.score >= 40) beep(nextJds.score);
     if (autoUpload && nextJds.score >= 80) void uploadSnapshot(nextJds.score);
+  }
+
+  function updateBaselineEAR(avgEAR: number) {
+    if (avgEAR <= 0.12 || avgEAR >= 0.45) return baselineRef.current.ear;
+
+    const baseline = baselineRef.current;
+    if (baseline.samples.length < 90) {
+      baseline.samples.push(avgEAR);
+      baseline.ear = baseline.samples.reduce((sum, value) => sum + value, 0) / baseline.samples.length;
+      return baseline.ear;
+    }
+
+    if (avgEAR > baseline.ear * 0.86) {
+      baseline.ear = baseline.ear * 0.995 + avgEAR * 0.005;
+    }
+    return baseline.ear;
+  }
+
+  function resetCalibration() {
+    baselineRef.current = { ear: 0, samples: [] };
+    trackersRef.current = {
+      perclos: new PERCLOSTracker(900),
+      blink: new BlinkTracker(),
+      yawn: new YawnTracker(),
+    };
+    setMetrics(fallbackMetrics);
+    setJds(describeJDS(0));
+    setCameraStatus("기준을 다시 측정합니다. 정면을 보고 눈을 떠주세요.");
   }
 
   async function publishDetection(nextJds: JdsResult) {
@@ -365,10 +431,24 @@ export function JargemaApp() {
 
   async function uploadSnapshot(score: number) {
     const now = Date.now();
-    if (!user || now - lastUploadAt < 60_000) return;
+    if (!autoUpload) {
+      setSnapshotStatus("자동 업로드가 꺼져 있습니다.");
+      return;
+    }
+    if (!user) {
+      setSnapshotStatus("스냅샷 업로드는 로그인 후 동작합니다.");
+      return;
+    }
+    if (uploadInFlightRef.current) return;
+    if (now - lastUploadAt < 30_000) {
+      setSnapshotStatus(`쿨타임 ${Math.ceil((30_000 - (now - lastUploadAt)) / 1000)}초 남음`);
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
+    uploadInFlightRef.current = true;
     setLastUploadAt(now);
+    setSnapshotStatus("스냅샷 업로드 중");
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.fillStyle = "rgba(255, 0, 0, 0.72)";
@@ -378,18 +458,27 @@ export function JargemaApp() {
       ctx.fillText(`JARGEMA | JDS: ${score} | ${new Date().toLocaleString("ko-KR")}`, 12, canvas.height - 16);
     }
     const imageUrl = canvas.toDataURL("image/jpeg", 0.82);
-    await fetch("/api/snapshots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        imageUrl,
-        jdsScore: score,
-        caption: captions[Math.floor(Math.random() * captions.length)],
-        isPublic: true,
-        classCode: room?.code,
-      }),
-    });
-    await fetchFeed();
+    try {
+      const response = await fetch("/api/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageUrl,
+          jdsScore: score,
+          caption: captions[Math.floor(Math.random() * captions.length)],
+          isPublic: true,
+          classCode: room?.code,
+        }),
+      });
+      if (!response.ok) {
+        setSnapshotStatus("스냅샷 업로드 실패");
+        return;
+      }
+      setSnapshotStatus("스냅샷 업로드 완료. 30초 쿨타임");
+      await fetchFeed();
+    } finally {
+      uploadInFlightRef.current = false;
+    }
   }
 
   async function createRoom() {
@@ -492,6 +581,9 @@ export function JargemaApp() {
               <button onClick={() => runCameraDiagnostics()} className="h-11 rounded-md border border-black/20 px-3 text-sm font-bold">
                 카메라 진단
               </button>
+              <button onClick={resetCalibration} className="h-11 rounded-md border border-black/20 px-3 text-sm font-bold">
+                기준 재설정
+              </button>
               {cameraDiagnostic && <p className="rounded-md bg-[#fff4d6] p-3 text-xs font-bold text-[#6a5200]">{cameraDiagnostic}</p>}
               <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{alertText}</p>
             </div>
@@ -499,8 +591,9 @@ export function JargemaApp() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Metric label="EAR" value={metrics.avgEAR.toFixed(3)} icon={<Eye size={18} />} />
+            <Metric label="기준 EAR" value={metrics.baselineEAR ? metrics.baselineEAR.toFixed(3) : "측정 중"} icon={<Eye size={18} />} />
             <Metric label="PERCLOS" value={`${metrics.perclos.toFixed(1)}%`} icon={<Radio size={18} />} />
-            <Metric label="깜빡임" value={`${metrics.blinkRate}/min`} icon={<Zap size={18} />} />
+            <Metric label="눈 감김" value={`${Math.round(metrics.eyeClosureRatio * 100)}%`} icon={<Zap size={18} />} />
             <Metric label="고개" value={`${metrics.headPitch.toFixed(1)}deg`} icon={<Settings size={18} />} />
           </div>
 
@@ -565,6 +658,7 @@ export function JargemaApp() {
               <span>스냅샷 자동 업로드</span>
               <input type="checkbox" checked={autoUpload} onChange={(event) => setAutoUpload(event.target.checked)} />
             </label>
+            <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">{snapshotStatus}</p>
             <label className="flex items-center justify-between py-3 font-bold">
               <span>경고음</span>
               <input type="checkbox" checked={soundOn} onChange={(event) => setSoundOn(event.target.checked)} />
