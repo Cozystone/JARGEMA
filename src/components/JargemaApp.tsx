@@ -97,6 +97,7 @@ export function JargemaApp() {
   const [selectedCameraId, setSelectedCameraId] = useState("");
   const [canvasRatio, setCanvasRatio] = useState("16 / 9");
   const [snapshotStatus, setSnapshotStatus] = useState("스냅샷 대기 중");
+  const [snapshotCooldownSeconds, setSnapshotCooldownSeconds] = useState(0);
   const [metrics, setMetrics] = useState<DrowsinessMetrics>(fallbackMetrics);
   const [jds, setJds] = useState<JdsResult>(describeJDS(0));
   const [autoUpload, setAutoUpload] = useState(false);
@@ -472,7 +473,7 @@ export function JargemaApp() {
     }
     if (uploadInFlightRef.current) return;
     if (now - lastUploadAtRef.current < 30_000) {
-      setSnapshotStatus(`쿨타임 ${Math.ceil((30_000 - (now - lastUploadAtRef.current)) / 1000)}초 남음`);
+      setSnapshotStatus("스냅샷 쿨타임");
       return;
     }
     const canvas = createCleanSnapshotCanvas(score);
@@ -482,6 +483,7 @@ export function JargemaApp() {
     }
     uploadInFlightRef.current = true;
     lastUploadAtRef.current = now;
+    setSnapshotCooldownSeconds(30);
     setSnapshotStatus("피드에 스냅샷 추가됨. 서버 업로드 중");
     const imageUrl = canvas.toDataURL("image/jpeg", 0.82);
     const localSnapshot: Snapshot = {
@@ -598,6 +600,14 @@ export function JargemaApp() {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [fetchFeed, refreshRoom, room?.code]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((30_000 - (Date.now() - lastUploadAtRef.current)) / 1000));
+      setSnapshotCooldownSeconds(remaining);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#f6f7f2] text-[#161712]">
@@ -736,7 +746,9 @@ export function JargemaApp() {
               <span>스냅샷 자동 촬영</span>
               <input type="checkbox" checked={autoUpload} onChange={(event) => setAutoUpload(event.target.checked)} />
             </label>
-            <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">{snapshotStatus}</p>
+            <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">
+              {snapshotCooldownSeconds > 0 ? `${snapshotStatus} · ${snapshotCooldownSeconds}초 남음` : snapshotStatus}
+            </p>
             <label className="flex items-center justify-between py-3 font-bold">
               <span>경고음</span>
               <input type="checkbox" checked={soundOn} onChange={(event) => setSoundOn(event.target.checked)} />
