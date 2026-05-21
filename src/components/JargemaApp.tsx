@@ -140,6 +140,7 @@ export function JargemaApp() {
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<ClassRoom | null>(null);
   const [feed, setFeed] = useState<Snapshot[]>([]);
+  const [feedView, setFeedView] = useState<"common" | "class">("common");
 
   const alertText = useMemo(() => {
     if (jds.score >= 80) return "촬영 조건 도달. 업로드 동의가 켜져 있으면 피드로 전송됩니다.";
@@ -750,15 +751,6 @@ export function JargemaApp() {
             </div>
           </section>
 
-          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-            <FeedAlbum
-              title="클래스 피드"
-              description={room ? `${room.name} · ${room.code} 방에서 촬영된 스냅샷입니다.` : "로그인 후 방을 만들거나 참가하면 클래스 스냅샷이 따로 모입니다."}
-              snapshots={classFeed}
-              emptyText={room ? "아직 이 클래스에 올라온 스냅샷이 없습니다." : "현재 참가 중인 클래스가 없습니다."}
-              columns="compact"
-            />
-          </section>
         </section>
 
         <aside className="space-y-4">
@@ -816,11 +808,19 @@ export function JargemaApp() {
       <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6">
         <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
           <FeedAlbum
-            title="공통 피드"
-            description="게스트와 로그인 사용자의 졸음 스냅샷이 모두 올라오는 공개 앨범입니다."
-            snapshots={feed}
-            emptyText="아직 공통 피드 스냅샷이 없습니다."
-            columns="album"
+            view={feedView}
+            onViewChange={setFeedView}
+            roomLabel={room ? `${room.name} · ${room.code}` : null}
+            commonCount={feed.length}
+            classCount={classFeed.length}
+            snapshots={feedView === "common" ? feed : classFeed}
+            emptyText={
+              feedView === "common"
+                ? "아직 공통 피드 스냅샷이 없습니다."
+                : room
+                  ? "아직 이 클래스에 올라온 스냅샷이 없습니다."
+                  : "현재 참가 중인 클래스가 없습니다."
+            }
           />
         </div>
       </section>
@@ -841,33 +841,55 @@ function mergeSnapshots(primary: Snapshot[], secondary: Snapshot[]) {
 }
 
 function FeedAlbum({
-  title,
-  description,
+  view,
+  onViewChange,
+  roomLabel,
+  commonCount,
+  classCount,
   snapshots,
   emptyText,
-  columns,
 }: {
-  title: string;
-  description: string;
+  view: "common" | "class";
+  onViewChange: (view: "common" | "class") => void;
+  roomLabel: string | null;
+  commonCount: number;
+  classCount: number;
   snapshots: Snapshot[];
   emptyText: string;
-  columns: "album" | "compact";
 }) {
-  const gridClass = columns === "album" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
+  const description =
+    view === "common"
+      ? "게스트와 로그인 사용자의 졸음 스냅샷이 모두 올라오는 공개 앨범입니다."
+      : roomLabel
+        ? `${roomLabel} 방에서 촬영된 스냅샷입니다.`
+        : "로그인 후 방을 만들거나 참가하면 클래스 스냅샷이 따로 모입니다.";
 
   return (
     <>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> {title}</h2>
+          <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> 피드 앨범</h2>
           <p className="mt-1 text-sm font-bold text-[#69705d]">{description}</p>
         </div>
-        <span className="rounded-md bg-[#edf0e6] px-2 py-1 text-xs font-black text-[#56604e]">{snapshots.length} shots</span>
+        <div className="flex rounded-md border border-black/10 bg-[#edf0e6] p-1">
+          <button
+            onClick={() => onViewChange("common")}
+            className={`rounded px-3 py-2 text-sm font-black ${view === "common" ? "bg-[#161712] text-white" : "text-[#56604e]"}`}
+          >
+            공통 {commonCount}
+          </button>
+          <button
+            onClick={() => onViewChange("class")}
+            className={`rounded px-3 py-2 text-sm font-black ${view === "class" ? "bg-[#161712] text-white" : "text-[#56604e]"}`}
+          >
+            클래스 {classCount}
+          </button>
+        </div>
       </div>
       {snapshots.length === 0 ? (
         <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{emptyText}</p>
       ) : (
-        <div className={gridClass}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {snapshots.map((snapshot) => (
             <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10 bg-[#fbfcf8]">
               <div className="relative">
