@@ -100,11 +100,20 @@ const FACE_OVERVIEW_POINTS = [1, 10, 33, 61, 133, 152, 263, 291, 362, 468, 473];
 const LEFT_EYE_POINTS = [33, 160, 158, 133, 153, 144];
 const RIGHT_EYE_POINTS = [362, 385, 387, 263, 373, 380];
 const MOUTH_POINTS = [61, 185, 40, 39, 291, 375, 321, 405];
+const FACE_MESH_INTERVAL_MS = 100;
+const UI_UPDATE_INTERVAL_MS = 180;
+const DETECTION_PUBLISH_INTERVAL_MS = 1000;
+const BEEP_INTERVAL_MS = 2500;
 
 export function JargemaApp() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshLoopRef = useRef<number | null>(null);
+  const faceMeshBusyRef = useRef(false);
+  const lastFaceMeshAtRef = useRef(0);
+  const lastUiUpdateAtRef = useRef(0);
+  const lastDetectionPublishAtRef = useRef(0);
+  const lastBeepAtRef = useRef(0);
   const canvasRatioRef = useRef("16 / 9");
   const drawTransformRef = useRef<DrawTransform>({ sourceX: 0, sourceY: 0, scale: 1 });
   const baselineRef = useRef({ ear: 0, samples: [] as number[] });
@@ -314,9 +323,22 @@ export function JargemaApp() {
     });
 
     if (faceMeshLoopRef.current) window.cancelAnimationFrame(faceMeshLoopRef.current);
-    const sendFrame = async () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        await faceMesh.send({ image: video });
+    faceMeshBusyRef.current = false;
+    lastFaceMeshAtRef.current = 0;
+    const sendFrame = async (timestamp: number) => {
+      const canSend =
+        !faceMeshBusyRef.current &&
+        timestamp - lastFaceMeshAtRef.current >= FACE_MESH_INTERVAL_MS &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+
+      if (canSend) {
+        faceMeshBusyRef.current = true;
+        lastFaceMeshAtRef.current = timestamp;
+        try {
+          await faceMesh.send({ image: video });
+        } finally {
+          faceMeshBusyRef.current = false;
+        }
       }
       faceMeshLoopRef.current = window.requestAnimationFrame(sendFrame);
     };
@@ -330,8 +352,8 @@ export function JargemaApp() {
     if (!ctx) return;
     const sourceWidth = video.videoWidth || 640;
     const sourceHeight = video.videoHeight || 480;
-    canvas.width = sourceWidth;
-    canvas.height = sourceHeight;
+    if (canvas.width !== sourceWidth) canvas.width = sourceWidth;
+    if (canvas.height !== sourceHeight) canvas.height = sourceHeight;
     updateCanvasRatio(canvas.width, canvas.height);
     drawTransformRef.current = {
       sourceX: 0,
@@ -419,11 +441,21 @@ export function JargemaApp() {
       consecutiveClosed: trackers.perclos.getConsecutiveClosed(),
     };
     const nextJds = calculateJDS(nextMetrics);
-    setMetrics(nextMetrics);
-    setJds(nextJds);
-    setCameraStatus("감지 실행 중");
-    void publishDetection(nextJds);
-    if (soundOnRef.current && nextJds.score >= 40) beep(nextJds.score);
+    const now = Date.now();
+    if (now - lastUiUpdateAtRef.current >= UI_UPDATE_INTERVAL_MS) {
+      lastUiUpdateAtRef.current = now;
+      setMetrics(nextMetrics);
+      setJds(nextJds);
+      setCameraStatus("감지 실행 중");
+    }
+    if (now - lastDetectionPublishAtRef.current >= DETECTION_PUBLISH_INTERVAL_MS) {
+      lastDetectionPublishAtRef.current = now;
+      void publishDetection(nextJds);
+    }
+    if (soundOnRef.current && nextJds.score >= 40 && now - lastBeepAtRef.current >= BEEP_INTERVAL_MS) {
+      lastBeepAtRef.current = now;
+      beep(nextJds.score);
+    }
     if (shouldAutoCapture(nextJds.score, nextMetrics)) {
       if (autoUploadRef.current) {
         setSnapshotStatus("자동 촬영 조건 도달. 피드에 추가 중");
