@@ -681,51 +681,52 @@ export function JargemaApp() {
   }, [soundOn]);
 
   return (
-    <main className="min-h-screen bg-[#f6f7f2] text-[#161712]">
-      <header className="sticky top-0 z-20 border-b border-black/10 bg-[#f6f7f2]/92 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#69705d]">졸면 전시된다</p>
-            <h1 className="text-2xl font-black tracking-normal sm:text-3xl">JARGEMA</h1>
+    <main className="min-h-screen bg-[#fffdf5] text-[#10100d]">
+      <header className="sticky top-0 z-20 border-b-4 border-black bg-[#fffdf5]/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-[#ff3b1f]">졸면 전시된다</p>
+            <h1 className="text-4xl font-black leading-none tracking-normal sm:text-5xl">JARGEMA</h1>
           </div>
-          <div className="flex items-center gap-2 text-sm font-semibold">
+          <div className="flex rotate-1 items-center gap-2 rounded-sm border-4 border-black bg-[#ffe033] px-3 py-2 text-xs font-black shadow-[4px_4px_0_#000] sm:text-sm">
             <ShieldCheck size={18} />
             <span className="hidden sm:inline">자동 업로드 기본 OFF</span>
+            <span className="sm:hidden">UPLOAD OFF</span>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-7xl gap-4 px-4 py-4 sm:px-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
-        <section className="space-y-4">
-          <div className="grid gap-4 rounded-lg border border-black/10 bg-white p-3 shadow-sm md:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="relative overflow-hidden rounded-md bg-[#10120f]">
+      <div className="mx-auto grid max-w-7xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[minmax(0,1.25fr)_minmax(340px,0.75fr)]">
+        <section className="space-y-5">
+          <div className="grid gap-4 rounded-sm border-4 border-black bg-white p-3 shadow-[7px_7px_0_#000] md:grid-cols-[minmax(0,1fr)_290px]">
+            <div className="relative overflow-hidden rounded-sm border-4 border-black bg-[#10120f]">
               <video ref={videoRef} className="hidden" />
               <canvas ref={canvasRef} className="mx-auto block max-h-[70vh] w-full object-contain" style={{ aspectRatio: canvasRatio }} />
-              <div className="absolute left-3 top-3 rounded bg-black/70 px-2 py-1 text-xs font-semibold text-white">{cameraStatus}</div>
+              <div className="absolute left-3 top-3 rounded-sm border-2 border-black bg-white px-2 py-1 text-xs font-black text-black shadow-[3px_3px_0_#000]">{cameraStatus}</div>
               <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 0 9999px ${jds.score >= 40 ? "rgba(255,140,0,0.12)" : "transparent"}` }} />
             </div>
             <div className="flex flex-col justify-between gap-3">
-              <div className="rounded-md border border-black/10 p-4" style={{ borderColor: jds.color }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#69705d]">JDS SCORE</span>
-                  <span className="rounded px-2 py-1 text-xs font-black text-white" style={{ background: jds.color }}>{jds.level}</span>
+              <div className="rounded-sm border-4 bg-white p-4 shadow-[5px_5px_0_#000]" style={{ borderColor: jds.color }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-black text-[#10100d]">JDS SCORE</span>
+                  <span className="rounded-sm border-2 border-black px-2 py-1 text-xs font-black text-white shadow-[2px_2px_0_#000]" style={{ background: jds.color }}>{jds.level}</span>
                 </div>
                 <div className="mt-3 flex items-end gap-2">
-                  <span className="text-6xl font-black">{jds.score}</span>
-                  <span className="mb-2 font-bold text-[#69705d]">/100</span>
+                  <span className="text-7xl font-black leading-none">{jds.score}</span>
+                  <span className="mb-2 font-black text-[#666]">/100</span>
                 </div>
-                <div className="mt-3 h-3 overflow-hidden rounded-full bg-black/10">
-                  <div className="h-full rounded-full" style={{ width: `${jds.score}%`, background: jds.color }} />
+                <div className="mt-4 h-4 overflow-hidden rounded-sm border-2 border-black bg-white">
+                  <div className="h-full" style={{ width: `${jds.score}%`, background: jds.color }} />
                 </div>
               </div>
-              <button onClick={startCamera} className="flex h-12 items-center justify-center gap-2 rounded-md bg-[#161712] px-4 font-bold text-white">
+              <button onClick={startCamera} className="flex h-14 items-center justify-center gap-2 rounded-sm border-4 border-black bg-[#10100d] px-4 py-3 font-black text-white shadow-[5px_5px_0_#2b8cff] active:translate-x-1 active:translate-y-1 active:shadow-none">
                 <Camera size={18} /> 감지 시작
               </button>
               {cameraDevices.length > 0 && (
                 <select
                   value={selectedCameraId}
                   onChange={(event) => setSelectedCameraId(event.target.value)}
-                  className="h-11 rounded-md border border-black/15 bg-white px-3 text-sm font-semibold"
+                  className="h-12 rounded-sm border-4 border-black bg-white px-3 text-sm font-black"
                 >
                   {cameraDevices.map((device) => (
                     <option key={device.deviceId} value={device.deviceId}>
@@ -734,14 +735,14 @@ export function JargemaApp() {
                   ))}
                 </select>
               )}
-              <button onClick={() => runCameraDiagnostics()} className="h-11 rounded-md border border-black/20 px-3 text-sm font-bold">
+              <button onClick={() => runCameraDiagnostics()} className="h-12 rounded-sm border-4 border-black bg-white px-3 text-sm font-black shadow-[4px_4px_0_#000] active:translate-x-1 active:translate-y-1 active:shadow-none">
                 카메라 진단
               </button>
-              <button onClick={resetCalibration} className="h-11 rounded-md border border-black/20 px-3 text-sm font-bold">
+              <button onClick={resetCalibration} className="h-12 rounded-sm border-4 border-black bg-white px-3 text-sm font-black shadow-[4px_4px_0_#000] active:translate-x-1 active:translate-y-1 active:shadow-none">
                 기준 재설정
               </button>
-              {cameraDiagnostic && <p className="rounded-md bg-[#fff4d6] p-3 text-xs font-bold text-[#6a5200]">{cameraDiagnostic}</p>}
-              <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{alertText}</p>
+              {cameraDiagnostic && <p className="rounded-sm border-4 border-black bg-[#ffe033] p-3 text-xs font-black">{cameraDiagnostic}</p>}
+              <p className="rounded-sm border-4 border-black bg-[#d9f99d] p-3 text-sm font-black">{alertText}</p>
             </div>
           </div>
 
@@ -756,34 +757,34 @@ export function JargemaApp() {
             <Metric label="고개 패턴" value={metrics.nodDetected ? "훅 떨어짐" : metrics.gradualHeadDrop ? "점진 하강" : "안정"} icon={<Settings size={18} />} />
           </div>
 
-          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <h2 className="text-xl font-black">클래스 라이브보드</h2>
-                <p className="text-sm font-medium text-[#69705d]">{user ? "방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다." : "게스트는 공통 피드에만 올라갑니다. 로그인하면 방을 만들 수 있습니다."}</p>
+                <h2 className="text-2xl font-black">클래스 라이브보드</h2>
+                <p className="text-sm font-black text-[#555]">{user ? "방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다." : "게스트는 공통 피드에만 올라갑니다. 로그인하면 방을 만들 수 있습니다."}</p>
               </div>
-              {room && <span className="rounded-md bg-[#00a66a] px-3 py-2 font-black text-white">{room.code}</span>}
+              {room && <span className="rotate-1 rounded-sm border-4 border-black bg-[#16c46a] px-3 py-2 font-black text-white shadow-[4px_4px_0_#000]">{room.code}</span>}
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="flex gap-2">
-                <input value={className} onChange={(event) => setClassName(event.target.value)} disabled={!user} className="min-w-0 flex-1 rounded-md border border-black/15 px-3 disabled:bg-black/5" />
-                <button onClick={createRoom} disabled={!user} className="rounded-md bg-[#161712] px-4 font-bold text-white disabled:bg-black/25">방 만들기</button>
+                <input value={className} onChange={(event) => setClassName(event.target.value)} disabled={!user} className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
+                <button onClick={createRoom} disabled={!user} className="rounded-sm border-4 border-black bg-[#2b8cff] px-4 font-black text-white shadow-[4px_4px_0_#000] disabled:bg-black/25">방 만들기</button>
               </div>
               <div className="flex gap-2">
-                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} disabled={!user} placeholder="참가 코드" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 disabled:bg-black/5" />
-                <button onClick={joinRoom} disabled={!user} className="rounded-md border border-black/20 px-4 font-bold disabled:bg-black/5 disabled:text-black/35">참가</button>
+                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} disabled={!user} placeholder="참가 코드" className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
+                <button onClick={joinRoom} disabled={!user} className="rounded-sm border-4 border-black bg-white px-4 font-black shadow-[4px_4px_0_#000] disabled:bg-black/5 disabled:text-black/35">참가</button>
               </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {(room?.members ?? []).map((member) => (
-                <div key={member.userId} className="rounded-md border border-black/10 p-3">
+                <div key={member.userId} className="rounded-sm border-4 border-black bg-[#fffdf5] p-3 shadow-[3px_3px_0_#000]">
                   <div className="flex items-center justify-between">
                     <span className="font-black">@{member.username}</span>
-                    <span className="text-xs font-bold text-[#69705d]">{member.role}</span>
+                    <span className="text-xs font-black text-[#555]">{member.role}</span>
                   </div>
                   <div className="mt-2 flex items-end justify-between">
-                    <span className="text-3xl font-black">{member.jds}</span>
-                    <span className="text-sm font-bold">{member.level}</span>
+                    <span className="text-4xl font-black">{member.jds}</span>
+                    <span className="rounded-sm bg-[#ffe033] px-2 py-1 text-xs font-black">{member.level}</span>
                   </div>
                 </div>
               ))}
@@ -792,32 +793,33 @@ export function JargemaApp() {
 
         </section>
 
-        <aside className="space-y-4">
-          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><DoorOpen size={20} /> 계정</h2>
+        <aside className="space-y-5">
+          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
+            <h2 className="mb-3 flex items-center gap-2 text-2xl font-black"><DoorOpen size={20} /> 계정</h2>
             {user ? (
-              <p className="rounded-md bg-[#edf0e6] p-3 font-bold">@{user.username} 로그인됨</p>
+              <p className="rounded-sm border-4 border-black bg-[#d9f99d] p-3 font-black">@{user.username} 로그인됨</p>
             ) : (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setAuthMode("register")} className={`rounded-md p-2 font-bold ${authMode === "register" ? "bg-[#161712] text-white" : "bg-[#edf0e6]"}`}>가입</button>
-                  <button onClick={() => setAuthMode("login")} className={`rounded-md p-2 font-bold ${authMode === "login" ? "bg-[#161712] text-white" : "bg-[#edf0e6]"}`}>로그인</button>
+                  <button onClick={() => setAuthMode("register")} className={`rounded-sm border-4 border-black p-2 font-black shadow-[3px_3px_0_#000] ${authMode === "register" ? "bg-[#10100d] text-white" : "bg-[#ffe033]"}`}>가입</button>
+                  <button onClick={() => setAuthMode("login")} className={`rounded-sm border-4 border-black p-2 font-black shadow-[3px_3px_0_#000] ${authMode === "login" ? "bg-[#10100d] text-white" : "bg-white"}`}>로그인</button>
                 </div>
-                {authMode === "register" && <input value={username} onChange={(event) => setUsername(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="닉네임 예: sleepy_student" />}
-                <input value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="이메일 예: student@jargema.local" />
-                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="비밀번호 예: jargema1234" />
-                <button onClick={authenticate} className="h-11 w-full rounded-md bg-[#161712] font-bold text-white">계속</button>
+                {authMode === "register" && <input value={username} onChange={(event) => setUsername(event.target.value)} className="h-12 w-full rounded-sm border-4 border-black px-3 font-black" placeholder="닉네임 예: sleepy_student" />}
+                <input value={email} onChange={(event) => setEmail(event.target.value)} className="h-12 w-full rounded-sm border-4 border-black px-3 font-black" placeholder="이메일 예: student@jargema.local" />
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="h-12 w-full rounded-sm border-4 border-black px-3 font-black" placeholder="비밀번호 예: jargema1234" />
+                <button onClick={authenticate} className="h-12 w-full rounded-sm border-4 border-black bg-[#10100d] font-black text-white shadow-[4px_4px_0_#2b8cff]">계속</button>
                 {authError && <p className="text-sm font-bold text-red-600">{authError}</p>}
               </div>
             )}
           </section>
 
-          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-xl font-black">설정</h2>
-            <label className="flex items-center justify-between border-b border-black/10 py-3 font-bold">
+          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
+            <h2 className="mb-3 text-2xl font-black">설정</h2>
+            <label className="flex items-center justify-between border-b-4 border-black py-3 font-black">
               <span>스냅샷 자동 촬영</span>
               <input
                 type="checkbox"
+                className="h-6 w-6 accent-[#2b8cff]"
                 checked={autoUpload}
                 onChange={(event) => {
                   autoUploadRef.current = event.target.checked;
@@ -826,13 +828,14 @@ export function JargemaApp() {
                 }}
               />
             </label>
-            <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">
+            <p className="border-b-4 border-black py-3 text-sm font-black text-[#555]">
               {snapshotCooldownSeconds > 0 ? `${snapshotStatus} · ${snapshotCooldownSeconds}초 남음` : snapshotStatus}
             </p>
-            <label className="flex items-center justify-between py-3 font-bold">
+            <label className="flex items-center justify-between py-3 font-black">
               <span>경고음</span>
               <input
                 type="checkbox"
+                className="h-6 w-6 accent-[#ff3b1f]"
                 checked={soundOn}
                 onChange={(event) => {
                   soundOnRef.current = event.target.checked;
@@ -844,8 +847,8 @@ export function JargemaApp() {
 
         </aside>
       </div>
-      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6">
-        <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+      <section className="mx-auto max-w-7xl px-4 pb-10 sm:px-6">
+        <div className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
           <FeedAlbum
             view={feedView}
             onViewChange={setFeedView}
@@ -905,43 +908,45 @@ function FeedAlbum({
 
   return (
     <>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> 피드 앨범</h2>
-          <p className="mt-1 text-sm font-bold text-[#69705d]">{description}</p>
+          <h2 className="flex items-center gap-2 text-3xl font-black leading-none"><Users size={24} /> 피드 앨범</h2>
+          <p className="mt-2 max-w-2xl text-sm font-black text-[#555]">{description}</p>
         </div>
-        <div className="flex rounded-md border border-black/10 bg-[#edf0e6] p-1">
+        <div className="flex rounded-sm border-4 border-black bg-white p-1 shadow-[4px_4px_0_#000]">
           <button
             onClick={() => onViewChange("common")}
-            className={`rounded px-3 py-2 text-sm font-black ${view === "common" ? "bg-[#161712] text-white" : "text-[#56604e]"}`}
+            className={`rounded-sm px-3 py-2 text-sm font-black ${view === "common" ? "bg-[#2b8cff] text-white" : "text-[#10100d]"}`}
           >
             공통 {commonCount}
           </button>
           <button
             onClick={() => onViewChange("class")}
-            className={`rounded px-3 py-2 text-sm font-black ${view === "class" ? "bg-[#161712] text-white" : "text-[#56604e]"}`}
+            className={`rounded-sm px-3 py-2 text-sm font-black ${view === "class" ? "bg-[#ff3b1f] text-white" : "text-[#10100d]"}`}
           >
             클래스 {classCount}
           </button>
         </div>
       </div>
       {snapshots.length === 0 ? (
-        <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{emptyText}</p>
+        <div className="grid min-h-44 place-items-center rounded-sm border-4 border-dashed border-black bg-[#fffdf5] p-6 text-center">
+          <p className="-rotate-1 text-2xl font-black leading-tight sm:text-3xl">{emptyText}</p>
+        </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {snapshots.map((snapshot) => (
-            <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10 bg-[#fbfcf8]">
+            <article key={snapshot.id} className="overflow-hidden rounded-sm border-4 border-black bg-[#fffdf5] shadow-[5px_5px_0_#000]">
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full object-cover" />
-                <span className="absolute left-2 top-2 rounded bg-[#ff4500] px-2 py-1 text-xs font-black text-white">JDS {snapshot.jdsScore}</span>
+                <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full border-b-4 border-black object-cover" />
+                <span className="absolute left-2 top-2 rotate-[-2deg] rounded-sm border-2 border-black bg-[#ff3b1f] px-2 py-1 text-xs font-black text-white shadow-[2px_2px_0_#000]">JDS {snapshot.jdsScore}</span>
               </div>
               <div className="space-y-2 p-3">
-                <div className="flex items-center justify-between gap-2 text-xs font-black text-[#69705d]">
+                <div className="flex items-center justify-between gap-2 text-xs font-black text-[#555]">
                   <span className="truncate">@{snapshot.username || "guest"}</span>
                   <span>{new Date(snapshot.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
-                <p className="rounded bg-white p-2 text-sm font-black leading-5">{snapshot.caption}</p>
+                <p className="rounded-sm border-2 border-black bg-white p-2 text-sm font-black leading-5">{snapshot.caption}</p>
               </div>
             </article>
           ))}
@@ -953,12 +958,12 @@ function FeedAlbum({
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between text-[#69705d]">
+    <div className="rounded-sm border-4 border-black bg-white p-4 shadow-[5px_5px_0_#000]">
+      <div className="flex items-center justify-between text-[#555]">
         <span className="text-sm font-black">{label}</span>
         {icon}
       </div>
-      <p className="mt-3 text-3xl font-black">{value}</p>
+      <p className="mt-3 break-words text-3xl font-black leading-none">{value}</p>
     </div>
   );
 }
