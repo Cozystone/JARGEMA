@@ -13,9 +13,15 @@ export function estimateHeadPose(landmarks: Landmark[]) {
   }
 
   const eyeMidY = (leftEye.y + rightEye.y) / 2;
+  const mouthMidY = (leftMouth.y + rightMouth.y) / 2;
   const faceHeight = Math.max(0.001, chin.y - eyeMidY);
-  const noseRatio = (nose.y - eyeMidY) / faceHeight;
-  const pitch = (noseRatio - 0.38) * 85;
+  const noseEyeRatio = (nose.y - eyeMidY) / faceHeight;
+  const noseMouthRatio = (mouthMidY - nose.y) / faceHeight;
+  const chinNoseRatio = (chin.y - nose.y) / faceHeight;
+  const pitchFromNose = (noseEyeRatio - 0.38) * 92;
+  const pitchFromMouth = (0.36 - noseMouthRatio) * 72;
+  const pitchFromChin = (0.58 - chinNoseRatio) * 46;
+  const pitch = pitchFromNose * 0.55 + pitchFromMouth * 0.3 + pitchFromChin * 0.15;
   const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x) * (180 / Math.PI);
 
   return { pitch, roll };

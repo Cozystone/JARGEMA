@@ -15,25 +15,28 @@ export class HeadMotionTracker {
   private baselinePitch = 0;
   private baselineSamples: number[] = [];
   private samples: Sample[] = [];
+  private smoothedPitch = 0;
 
   update(pitch: number, now = Date.now()): HeadMotionState {
-    this.updateBaseline(pitch);
-    this.samples.push({ pitch, at: now });
+    this.smoothedPitch = this.samples.length === 0 ? pitch : this.smoothedPitch * 0.72 + pitch * 0.28;
+    this.updateBaseline(this.smoothedPitch);
+    this.samples.push({ pitch: this.smoothedPitch, at: now });
     const cutoff = now - 5000;
     this.samples = this.samples.filter((sample) => sample.at >= cutoff);
 
-    const headDrop = pitch - this.baselinePitch;
+    const recentFloor = Math.min(...this.samples.map((sample) => sample.pitch), this.baselinePitch);
+    const headDrop = Math.max(this.smoothedPitch - this.baselinePitch, this.smoothedPitch - recentFloor);
     const recent = this.findSampleSince(now - 550);
     const older = this.findSampleSince(now - 2800);
-    const velocity = recent ? (pitch - recent.pitch) / Math.max(0.1, (now - recent.at) / 1000) : 0;
-    const gradualVelocity = older ? (pitch - older.pitch) / Math.max(0.1, (now - older.at) / 1000) : 0;
+    const velocity = recent ? (this.smoothedPitch - recent.pitch) / Math.max(0.1, (now - recent.at) / 1000) : 0;
+    const gradualVelocity = older ? (this.smoothedPitch - older.pitch) / Math.max(0.1, (now - older.at) / 1000) : 0;
 
     return {
       baselinePitch: this.baselinePitch,
       headDrop,
       velocity,
-      nodDetected: headDrop > 10 && velocity > 18,
-      gradualDrop: headDrop > 14 && gradualVelocity > 3,
+      nodDetected: headDrop > 8 && velocity > 13,
+      gradualDrop: headDrop > 10 && gradualVelocity > 2.2,
     };
   }
 
@@ -41,6 +44,7 @@ export class HeadMotionTracker {
     this.baselinePitch = 0;
     this.baselineSamples = [];
     this.samples = [];
+    this.smoothedPitch = 0;
   }
 
   private updateBaseline(pitch: number) {
