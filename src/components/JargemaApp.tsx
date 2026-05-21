@@ -115,7 +115,8 @@ const TRACKING_FPS = Math.round(1000 / FACE_MESH_INTERVAL_MS);
 const PERCLOS_WINDOW_SECONDS = 30;
 const UI_UPDATE_INTERVAL_MS = 180;
 const DETECTION_PUBLISH_INTERVAL_MS = 5000;
-const BEEP_INTERVAL_MS = 2500;
+const MEDICAL_BEEP_INTERVAL_MS = 900;
+const FLATLINE_BEEP_INTERVAL_MS = 3200;
 
 export function JargemaApp() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -476,7 +477,7 @@ export function JargemaApp() {
       lastDetectionPublishAtRef.current = now;
       void publishDetection(nextJds, nextMetrics);
     }
-    if (soundOnRef.current && nextJds.score >= 40 && now - lastBeepAtRef.current >= BEEP_INTERVAL_MS) {
+    if (soundOnRef.current && nextJds.score >= 40 && now - lastBeepAtRef.current >= getAlertSoundInterval(nextJds.score)) {
       lastBeepAtRef.current = now;
       beep(nextJds.score);
     }
@@ -547,17 +548,29 @@ export function JargemaApp() {
   function beep(score: number) {
     const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const audio = new AudioContextClass();
+    void audio.resume();
     const osc = audio.createOscillator();
     const gain = audio.createGain();
-    osc.frequency.value = score >= 80 ? 880 : 520;
-    gain.gain.value = 0.03;
+    const now = audio.currentTime;
+    const isAsleep = score >= 80;
+
+    osc.type = isAsleep ? "sawtooth" : "sine";
+    osc.frequency.setValueAtTime(isAsleep ? 880 : 1040, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(isAsleep ? 0.045 : 0.035, now + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + (isAsleep ? 2.2 : 0.12));
+
     osc.connect(gain);
     gain.connect(audio.destination);
     osc.start();
     window.setTimeout(() => {
       osc.stop();
       audio.close();
-    }, 120);
+    }, isAsleep ? 2300 : 140);
+  }
+
+  function getAlertSoundInterval(score: number) {
+    return score >= 80 ? FLATLINE_BEEP_INTERVAL_MS : MEDICAL_BEEP_INTERVAL_MS;
   }
 
   async function uploadSnapshot(score: number) {
