@@ -419,11 +419,11 @@ export function JargemaApp() {
     const headPose = estimateHeadPose(landmarks);
     const headMotion = trackersRef.current.head.update(headPose.pitch);
     const baselineEAR = updateBaselineEAR(avgEAR);
-    const closedThreshold = baselineEAR > 0 ? Math.max(0.12, baselineEAR * 0.72) : 0.2;
-    const fullClosedThreshold = baselineEAR > 0 ? Math.max(0.08, baselineEAR * 0.48) : 0.13;
+    const closedThreshold = baselineEAR > 0 ? Math.max(0.14, baselineEAR * 0.8) : 0.2;
+    const fullClosedThreshold = baselineEAR > 0 ? Math.max(0.09, baselineEAR * 0.42) : 0.13;
     const eyeClosureRatio =
       baselineEAR > 0 ? clamp((baselineEAR - avgEAR) / Math.max(0.01, baselineEAR - fullClosedThreshold), 0, 1) : avgEAR < 0.2 ? 1 : 0;
-    const isClosed = avgEAR < closedThreshold || eyeClosureRatio > 0.62;
+    const isClosed = avgEAR < closedThreshold || eyeClosureRatio > 0.48 || avgEAR < 0.18;
     const trackers = trackersRef.current;
 
     trackers.perclos.update(isClosed);
@@ -487,7 +487,7 @@ export function JargemaApp() {
   }
 
   function updateBaselineEAR(avgEAR: number) {
-    if (avgEAR <= 0.12 || avgEAR >= 0.45) return baselineRef.current.ear;
+    if (avgEAR <= 0.12 || avgEAR >= 0.6) return baselineRef.current.ear;
 
     const baseline = baselineRef.current;
     if (baseline.samples.length < 90) {

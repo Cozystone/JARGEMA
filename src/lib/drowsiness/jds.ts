@@ -14,8 +14,9 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
   else if (metrics.observedSeconds >= 8 && metrics.blinkRate < 12 && !metrics.longEyeClosure) score += 6;
   else if (metrics.blinkRate > 30) score += 14;
 
-  if (metrics.microsleepDuration > 3000) score += 34;
-  else if (metrics.microsleepDuration > 1800) score += 26;
+  if (metrics.microsleepDuration > 2600) score += 38;
+  else if (metrics.microsleepDuration > 1400) score += 30;
+  else if (metrics.microsleepDuration > 800) score += 18;
   else if (metrics.blinkDuration > 900) score += 16;
   else if (metrics.blinkDuration > 500) score += 5;
 
@@ -30,13 +31,13 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
   if (metrics.gradualHeadDrop) score += 12;
   if (Math.abs(metrics.headRoll) > 15) score += 4;
 
-  if (metrics.eyeClosureRatio > 0.9) score += 26;
-  else if (metrics.eyeClosureRatio > 0.75) score += 18;
-  else if (metrics.eyeClosureRatio > 0.55) score += 10;
+  if (metrics.eyeClosureRatio > 0.85) score += 30;
+  else if (metrics.eyeClosureRatio > 0.68) score += 22;
+  else if (metrics.eyeClosureRatio > 0.45) score += 14;
 
-  if (metrics.consecutiveClosed > 45) score += 18;
-  else if (metrics.consecutiveClosed > 28) score += 12;
-  else if (metrics.consecutiveClosed > 16) score += 6;
+  if (metrics.consecutiveClosed > 34) score += 20;
+  else if (metrics.consecutiveClosed > 20) score += 14;
+  else if (metrics.consecutiveClosed > 10) score += 8;
 
   if (metrics.microsleepDuration > 2500 && metrics.eyeClosureRatio > 0.8) score += 14;
   if (metrics.gazeDown && metrics.eyeClosureRatio > 0.55) score += 8;
