@@ -100,7 +100,9 @@ const FACE_OVERVIEW_POINTS = [1, 10, 33, 61, 133, 152, 263, 291, 362, 468, 473];
 const LEFT_EYE_POINTS = [33, 160, 158, 133, 153, 144];
 const RIGHT_EYE_POINTS = [362, 385, 387, 263, 373, 380];
 const MOUTH_POINTS = [61, 185, 40, 39, 291, 375, 321, 405];
-const FACE_MESH_INTERVAL_MS = 100;
+const FACE_MESH_INTERVAL_MS = 75;
+const TRACKING_FPS = Math.round(1000 / FACE_MESH_INTERVAL_MS);
+const PERCLOS_WINDOW_SECONDS = 30;
 const UI_UPDATE_INTERVAL_MS = 180;
 const DETECTION_PUBLISH_INTERVAL_MS = 1000;
 const BEEP_INTERVAL_MS = 2500;
@@ -122,7 +124,7 @@ export function JargemaApp() {
   const autoUploadRef = useRef(false);
   const soundOnRef = useRef(true);
   const trackersRef = useRef({
-    perclos: new PERCLOSTracker(900),
+    perclos: new PERCLOSTracker(TRACKING_FPS * PERCLOS_WINDOW_SECONDS),
     blink: new BlinkTracker(),
     yawn: new YawnTracker(),
     head: new HeadMotionTracker(),
@@ -424,7 +426,7 @@ export function JargemaApp() {
       eyeClosureRatio,
       mar,
       perclos: trackers.perclos.getPerclos(),
-      observedSeconds: trackers.perclos.getObservedSeconds(),
+      observedSeconds: trackers.perclos.getObservedSeconds(TRACKING_FPS),
       blinkRate: trackers.blink.getRate(),
       blinkDuration: trackers.blink.getLastDuration(),
       longEyeClosure: trackers.blink.isLongClosure(),
@@ -493,7 +495,7 @@ export function JargemaApp() {
   function resetCalibration() {
     baselineRef.current = { ear: 0, samples: [] };
     trackersRef.current = {
-      perclos: new PERCLOSTracker(900),
+      perclos: new PERCLOSTracker(TRACKING_FPS * PERCLOS_WINDOW_SECONDS),
       blink: new BlinkTracker(),
       yawn: new YawnTracker(),
       head: new HeadMotionTracker(),

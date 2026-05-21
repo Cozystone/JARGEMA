@@ -34,9 +34,9 @@ export function calculateJDS(metrics: DrowsinessMetrics): JdsResult {
   else if (metrics.eyeClosureRatio > 0.75) score += 18;
   else if (metrics.eyeClosureRatio > 0.55) score += 10;
 
-  if (metrics.consecutiveClosed > 120) score += 18;
-  else if (metrics.consecutiveClosed > 75) score += 12;
-  else if (metrics.consecutiveClosed > 45) score += 6;
+  if (metrics.consecutiveClosed > 45) score += 18;
+  else if (metrics.consecutiveClosed > 28) score += 12;
+  else if (metrics.consecutiveClosed > 16) score += 6;
 
   if (metrics.microsleepDuration > 2500 && metrics.eyeClosureRatio > 0.8) score += 14;
   if (metrics.gazeDown && metrics.eyeClosureRatio > 0.55) score += 8;
