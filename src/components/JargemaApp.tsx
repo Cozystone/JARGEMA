@@ -120,9 +120,9 @@ export function JargemaApp() {
 
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authMode, setAuthMode] = useState<"login" | "register">("register");
-  const [username, setUsername] = useState("student");
-  const [email, setEmail] = useState("student@jargema.local");
-  const [password, setPassword] = useState("jargema1234");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [cameraStatus, setCameraStatus] = useState("카메라 대기 중");
   const [cameraDiagnostic, setCameraDiagnostic] = useState("");
@@ -759,9 +759,9 @@ export function JargemaApp() {
                   <button onClick={() => setAuthMode("register")} className={`rounded-md p-2 font-bold ${authMode === "register" ? "bg-[#161712] text-white" : "bg-[#edf0e6]"}`}>가입</button>
                   <button onClick={() => setAuthMode("login")} className={`rounded-md p-2 font-bold ${authMode === "login" ? "bg-[#161712] text-white" : "bg-[#edf0e6]"}`}>로그인</button>
                 </div>
-                {authMode === "register" && <input value={username} onChange={(event) => setUsername(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="username" />}
-                <input value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="email" />
-                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="password" />
+                {authMode === "register" && <input value={username} onChange={(event) => setUsername(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="닉네임 예: sleepy_student" />}
+                <input value={email} onChange={(event) => setEmail(event.target.value)} className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="이메일 예: student@jargema.local" />
+                <input value={password} onChange={(event) => setPassword(event.target.value)} type="password" className="h-11 w-full rounded-md border border-black/15 px-3" placeholder="비밀번호 예: jargema1234" />
                 <button onClick={authenticate} className="h-11 w-full rounded-md bg-[#161712] font-bold text-white">계속</button>
                 {authError && <p className="text-sm font-bold text-red-600">{authError}</p>}
               </div>
