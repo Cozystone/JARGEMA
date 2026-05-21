@@ -78,6 +78,8 @@ export function JargemaApp() {
   const baselineRef = useRef({ ear: 0, samples: [] as number[] });
   const uploadInFlightRef = useRef(false);
   const lastUploadAtRef = useRef(0);
+  const autoUploadRef = useRef(false);
+  const soundOnRef = useRef(true);
   const trackersRef = useRef({
     perclos: new PERCLOSTracker(900),
     blink: new BlinkTracker(),
@@ -392,9 +394,9 @@ export function JargemaApp() {
     setJds(nextJds);
     setCameraStatus("감지 실행 중");
     void publishDetection(nextJds);
-    if (soundOn && nextJds.score >= 40) beep(nextJds.score);
+    if (soundOnRef.current && nextJds.score >= 40) beep(nextJds.score);
     if (shouldAutoCapture(nextJds.score, nextMetrics)) {
-      if (autoUpload) {
+      if (autoUploadRef.current) {
         setSnapshotStatus("자동 촬영 조건 도달. 피드에 추가 중");
         void uploadSnapshot(nextJds.score);
       }
@@ -467,7 +469,7 @@ export function JargemaApp() {
 
   async function uploadSnapshot(score: number) {
     const now = Date.now();
-    if (!autoUpload) {
+    if (!autoUploadRef.current) {
       setSnapshotStatus("자동 촬영이 꺼져 있습니다.");
       return;
     }
@@ -609,6 +611,14 @@ export function JargemaApp() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    autoUploadRef.current = autoUpload;
+  }, [autoUpload]);
+
+  useEffect(() => {
+    soundOnRef.current = soundOn;
+  }, [soundOn]);
+
   return (
     <main className="min-h-screen bg-[#f6f7f2] text-[#161712]">
       <header className="sticky top-0 z-20 border-b border-black/10 bg-[#f6f7f2]/92 backdrop-blur">
@@ -744,14 +754,29 @@ export function JargemaApp() {
             <h2 className="mb-3 text-xl font-black">설정</h2>
             <label className="flex items-center justify-between border-b border-black/10 py-3 font-bold">
               <span>스냅샷 자동 촬영</span>
-              <input type="checkbox" checked={autoUpload} onChange={(event) => setAutoUpload(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={autoUpload}
+                onChange={(event) => {
+                  autoUploadRef.current = event.target.checked;
+                  setAutoUpload(event.target.checked);
+                  setSnapshotStatus(event.target.checked ? "자동 촬영 켜짐" : "자동 촬영이 꺼져 있습니다.");
+                }}
+              />
             </label>
             <p className="border-b border-black/10 py-3 text-sm font-bold text-[#69705d]">
               {snapshotCooldownSeconds > 0 ? `${snapshotStatus} · ${snapshotCooldownSeconds}초 남음` : snapshotStatus}
             </p>
             <label className="flex items-center justify-between py-3 font-bold">
               <span>경고음</span>
-              <input type="checkbox" checked={soundOn} onChange={(event) => setSoundOn(event.target.checked)} />
+              <input
+                type="checkbox"
+                checked={soundOn}
+                onChange={(event) => {
+                  soundOnRef.current = event.target.checked;
+                  setSoundOn(event.target.checked);
+                }}
+              />
             </label>
           </section>
 
