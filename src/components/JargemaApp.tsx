@@ -30,6 +30,16 @@ type Snapshot = {
   reactions: Record<string, number>;
 };
 
+type PatternReport = {
+  summary: string;
+  peakDrowsyHour: number | null;
+  riskWindows: { label: string; avgJds: number; count: number }[];
+  recurringSignals: string[];
+  nextRiskHint: string;
+  sampleCount: number;
+  updatedAt: string;
+};
+
 type CameraDevice = {
   deviceId: string;
   label: string;
@@ -104,7 +114,7 @@ const FACE_MESH_INTERVAL_MS = 75;
 const TRACKING_FPS = Math.round(1000 / FACE_MESH_INTERVAL_MS);
 const PERCLOS_WINDOW_SECONDS = 30;
 const UI_UPDATE_INTERVAL_MS = 180;
-const DETECTION_PUBLISH_INTERVAL_MS = 1000;
+const DETECTION_PUBLISH_INTERVAL_MS = 5000;
 const BEEP_INTERVAL_MS = 2500;
 
 export function JargemaApp() {
@@ -153,6 +163,8 @@ export function JargemaApp() {
   const [room, setRoom] = useState<ClassRoom | null>(null);
   const [feed, setFeed] = useState<Snapshot[]>([]);
   const [feedView, setFeedView] = useState<"common" | "class">("common");
+  const [patternReport, setPatternReport] = useState<PatternReport | null>(null);
+  const [insightStatus, setInsightStatus] = useState("로그인하면 개인 패턴 분석이 시작됩니다.");
 
   const alertText = useMemo(() => {
     if (jds.score >= 80) return "촬영 조건 도달. 업로드 동의가 켜져 있으면 피드로 전송됩니다.";
@@ -462,7 +474,7 @@ export function JargemaApp() {
     }
     if (now - lastDetectionPublishAtRef.current >= DETECTION_PUBLISH_INTERVAL_MS) {
       lastDetectionPublishAtRef.current = now;
-      void publishDetection(nextJds);
+      void publishDetection(nextJds, nextMetrics);
     }
     if (soundOnRef.current && nextJds.score >= 40 && now - lastBeepAtRef.current >= BEEP_INTERVAL_MS) {
       lastBeepAtRef.current = now;
@@ -515,12 +527,20 @@ export function JargemaApp() {
     setCameraStatus("기준을 다시 측정합니다. 정면을 보고 눈을 떠주세요.");
   }
 
-  async function publishDetection(nextJds: JdsResult) {
-    if (!user || !room) return;
+  async function publishDetection(nextJds: JdsResult, nextMetrics: DrowsinessMetrics) {
+    if (!user) return;
     await fetch("/api/detections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classCode: room.code, jds: nextJds.score, level: nextJds.level }),
+      body: JSON.stringify({
+        classCode: room?.code,
+        jds: nextJds.score,
+        level: nextJds.level,
+        perclos: nextMetrics.perclos,
+        eyeClosureRatio: nextMetrics.eyeClosureRatio,
+        microsleepDuration: nextMetrics.microsleepDuration,
+        headDrop: nextMetrics.headDrop,
+      }),
     });
   }
 
@@ -665,6 +685,23 @@ export function JargemaApp() {
     if (response.ok) setFeed((current) => mergeSnapshots(current, data.snapshots));
   }, []);
 
+  const fetchInsights = useCallback(async () => {
+    if (!user) {
+      setPatternReport(null);
+      setInsightStatus("로그인하면 개인 패턴 분석이 시작됩니다.");
+      return;
+    }
+
+    const response = await fetch("/api/insights");
+    const data = (await response.json()) as { report?: PatternReport };
+    if (response.ok && data.report) {
+      setPatternReport(data.report);
+      setInsightStatus(data.report.sampleCount < 12 ? "분석 데이터 수집 중" : "개인 패턴 분석 중");
+      return;
+    }
+    setInsightStatus("패턴 분석을 불러오지 못했습니다.");
+  }, [user]);
+
   useEffect(() => {
     queueMicrotask(() => {
       void fetchFeed();
@@ -675,6 +712,16 @@ export function JargemaApp() {
     }, 5000);
     return () => window.clearInterval(timer);
   }, [fetchFeed, refreshRoom, room?.code]);
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void fetchInsights();
+    });
+    const timer = window.setInterval(() => {
+      void fetchInsights();
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [fetchInsights]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -862,6 +909,56 @@ export function JargemaApp() {
                 </div>
               ))}
             </div>
+          </section>
+
+          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black">AI 패턴 분석</h2>
+                <p className="text-sm font-black text-[#555]">{insightStatus}</p>
+              </div>
+              <span className="rotate-1 rounded-sm border-4 border-black bg-[#ffe033] px-2 py-1 text-xs font-black shadow-[3px_3px_0_#000]">
+                {patternReport ? `${patternReport.sampleCount} logs` : "WAIT"}
+              </span>
+            </div>
+            {patternReport ? (
+              <div className="mt-4 space-y-3">
+                <p className="rounded-sm border-4 border-black bg-[#fffdf5] p-3 text-sm font-black leading-5">{patternReport.summary}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-sm border-4 border-black bg-[#2b8cff] p-3 text-white">
+                    <p className="text-xs font-black">졸린 시간대</p>
+                    <p className="text-2xl font-black">{patternReport.peakDrowsyHour === null ? "수집중" : `${patternReport.peakDrowsyHour}시`}</p>
+                  </div>
+                  <div className="rounded-sm border-4 border-black bg-[#ff3b1f] p-3 text-white">
+                    <p className="text-xs font-black">다음 힌트</p>
+                    <p className="text-sm font-black leading-5">{patternReport.nextRiskHint}</p>
+                  </div>
+                </div>
+                {patternReport.riskWindows.length > 0 && (
+                  <div className="rounded-sm border-4 border-black p-3">
+                    <p className="mb-2 text-xs font-black text-[#555]">반복 위험 시간</p>
+                    <div className="flex flex-wrap gap-2">
+                      {patternReport.riskWindows.map((window) => (
+                        <span key={window.label} className="rounded-sm border-2 border-black bg-[#d9f99d] px-2 py-1 text-xs font-black">
+                          {window.label} · JDS {window.avgJds}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {patternReport.recurringSignals.map((signal) => (
+                    <p key={signal} className="rounded-sm border-2 border-black bg-white p-2 text-xs font-black leading-5">
+                      {signal}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 rounded-sm border-4 border-dashed border-black bg-[#fffdf5] p-3 text-sm font-black">
+                로그인 후 감지를 켜면 5초마다 졸음 로그를 모아 개인 패턴을 찾습니다.
+              </p>
+            )}
           </section>
 
         </aside>

@@ -7,6 +7,10 @@ const schema = z.object({
   classCode: z.string().optional(),
   jds: z.number().min(0).max(100),
   level: z.string().min(1),
+  perclos: z.number().min(0).max(100).optional(),
+  eyeClosureRatio: z.number().min(0).max(1).optional(),
+  microsleepDuration: z.number().min(0).optional(),
+  headDrop: z.number().optional(),
 });
 
 export async function POST(request: Request) {
@@ -22,6 +26,10 @@ export async function POST(request: Request) {
     username: user.username,
     jds: parsed.data.jds,
     level: parsed.data.level,
+    perclos: parsed.data.perclos,
+    eyeClosureRatio: parsed.data.eyeClosureRatio,
+    microsleepDuration: parsed.data.microsleepDuration,
+    headDrop: parsed.data.headDrop,
   });
 
   return NextResponse.json({ ok: true, classRoom });
