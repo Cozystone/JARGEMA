@@ -149,7 +149,10 @@ export function JargemaApp() {
     if (jds.score >= 20) return "졸음 초기 징후가 있습니다.";
     return "안정적으로 깨어 있습니다.";
   }, [jds.score]);
-  const classFeed = useMemo(() => (room ? feed.filter((snapshot) => snapshot.classCode === room.code) : []), [feed, room]);
+  const classFeed = useMemo(
+    () => (room ? feed.filter((snapshot) => snapshot.classCode?.toUpperCase() === room.code.toUpperCase()) : []),
+    [feed, room],
+  );
 
   async function authenticate() {
     setAuthError("");
@@ -543,7 +546,11 @@ export function JargemaApp() {
       }
       const data = (await response.json()) as { snapshot?: Snapshot };
       if (data.snapshot) {
-        setFeed((current) => mergeSnapshots([data.snapshot as Snapshot], current.filter((snapshot) => snapshot.id !== localSnapshot.id)));
+        const serverSnapshot = {
+          ...data.snapshot,
+          classCode: data.snapshot.classCode ?? localSnapshot.classCode,
+        } as Snapshot;
+        setFeed((current) => mergeSnapshots([serverSnapshot], current.filter((snapshot) => snapshot.id !== localSnapshot.id)));
       }
       setSnapshotStatus("공통 피드에 업로드 완료. 30초 쿨타임");
     } finally {
