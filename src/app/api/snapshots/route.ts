@@ -13,14 +13,13 @@ const schema = z.object({
 
 export async function POST(request: Request) {
   const user = await readSession();
-  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-
   const parsed = schema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "invalid_input" }, { status: 400 });
 
+  const guestId = `guest_${crypto.randomUUID()}`;
   const snapshot = addSnapshot({
-    userId: user.id,
-    username: user.username,
+    userId: user?.id ?? guestId,
+    username: user?.username ?? "guest",
     imageUrl: parsed.data.imageUrl,
     jdsScore: parsed.data.jdsScore,
     caption: parsed.data.caption ?? "졸음 포착",

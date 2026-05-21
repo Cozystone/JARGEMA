@@ -521,11 +521,6 @@ export function JargemaApp() {
       reactions: {},
     };
     setFeed((current) => mergeSnapshots([localSnapshot], current));
-    if (!user) {
-      setSnapshotStatus("로컬 피드에 표시됨. 서버 업로드는 로그인 후 동작합니다.");
-      uploadInFlightRef.current = false;
-      return;
-    }
     try {
       const response = await fetch("/api/snapshots", {
         method: "POST",
@@ -539,14 +534,14 @@ export function JargemaApp() {
         }),
       });
       if (!response.ok) {
-        setSnapshotStatus("로컬 피드에 표시됨. 서버 업로드는 실패했습니다.");
+        setSnapshotStatus("공통 피드에 로컬 표시됨. 서버 동기화는 실패했습니다.");
         return;
       }
       const data = (await response.json()) as { snapshot?: Snapshot };
       if (data.snapshot) {
         setFeed((current) => mergeSnapshots([data.snapshot as Snapshot], current.filter((snapshot) => snapshot.id !== localSnapshot.id)));
       }
-      setSnapshotStatus("스냅샷 업로드 완료. 30초 쿨타임");
+      setSnapshotStatus("공통 피드에 업로드 완료. 30초 쿨타임");
     } finally {
       uploadInFlightRef.current = false;
     }
@@ -722,18 +717,18 @@ export function JargemaApp() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black">클래스 라이브보드</h2>
-                <p className="text-sm font-medium text-[#69705d]">방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다.</p>
+                <p className="text-sm font-medium text-[#69705d]">{user ? "방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다." : "게스트는 공통 피드에만 올라갑니다. 로그인하면 방을 만들 수 있습니다."}</p>
               </div>
               {room && <span className="rounded-md bg-[#00a66a] px-3 py-2 font-black text-white">{room.code}</span>}
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               <div className="flex gap-2">
-                <input value={className} onChange={(event) => setClassName(event.target.value)} className="min-w-0 flex-1 rounded-md border border-black/15 px-3" />
-                <button onClick={createRoom} className="rounded-md bg-[#161712] px-4 font-bold text-white">방 만들기</button>
+                <input value={className} onChange={(event) => setClassName(event.target.value)} disabled={!user} className="min-w-0 flex-1 rounded-md border border-black/15 px-3 disabled:bg-black/5" />
+                <button onClick={createRoom} disabled={!user} className="rounded-md bg-[#161712] px-4 font-bold text-white disabled:bg-black/25">방 만들기</button>
               </div>
               <div className="flex gap-2">
-                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} placeholder="참가 코드" className="min-w-0 flex-1 rounded-md border border-black/15 px-3" />
-                <button onClick={joinRoom} className="rounded-md border border-black/20 px-4 font-bold">참가</button>
+                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} disabled={!user} placeholder="참가 코드" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 disabled:bg-black/5" />
+                <button onClick={joinRoom} disabled={!user} className="rounded-md border border-black/20 px-4 font-bold disabled:bg-black/5 disabled:text-black/35">참가</button>
               </div>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -804,19 +799,28 @@ export function JargemaApp() {
           </section>
 
           <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 flex items-center gap-2 text-xl font-black"><Users size={20} /> 공개 피드</h2>
-            <div className="space-y-3">
-              {feed.length === 0 && <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">아직 공개 스냅샷이 없습니다.</p>}
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> 공통 피드</h2>
+                <p className="mt-1 text-sm font-bold text-[#69705d]">게스트와 로그인 사용자의 졸음 스냅샷이 함께 올라옵니다.</p>
+              </div>
+              <span className="rounded-md bg-[#edf0e6] px-2 py-1 text-xs font-black text-[#56604e]">{feed.length} shots</span>
+            </div>
+            <div className="grid gap-3">
+              {feed.length === 0 && <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">아직 공통 피드 스냅샷이 없습니다.</p>}
               {feed.map((snapshot) => (
-                <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full object-cover" />
-                  <div className="p-3">
-                    <div className="flex justify-between text-sm font-black">
-                      <span>JDS {snapshot.jdsScore} · @{snapshot.username}</span>
-                      <span>{new Date(snapshot.createdAt).toLocaleTimeString("ko-KR")}</span>
+                <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10 bg-[#fbfcf8]">
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full object-cover" />
+                    <span className="absolute left-2 top-2 rounded bg-[#ff4500] px-2 py-1 text-xs font-black text-white">JDS {snapshot.jdsScore}</span>
+                  </div>
+                  <div className="space-y-2 p-3">
+                    <div className="flex items-center justify-between gap-2 text-xs font-black text-[#69705d]">
+                      <span className="truncate">@{snapshot.username || "guest"}</span>
+                      <span>{new Date(snapshot.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
                     </div>
-                    <p className="mt-1 font-bold">{snapshot.caption}</p>
+                    <p className="rounded bg-white p-2 text-sm font-black leading-5">{snapshot.caption}</p>
                   </div>
                 </article>
               ))}
