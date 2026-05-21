@@ -757,40 +757,6 @@ export function JargemaApp() {
             <Metric label="고개 패턴" value={metrics.nodDetected ? "훅 떨어짐" : metrics.gradualHeadDrop ? "점진 하강" : "안정"} icon={<Settings size={18} />} />
           </div>
 
-          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-black">클래스 라이브보드</h2>
-                <p className="text-sm font-black text-[#555]">{user ? "방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다." : "게스트는 공통 피드에만 올라갑니다. 로그인하면 방을 만들 수 있습니다."}</p>
-              </div>
-              {room && <span className="rotate-1 rounded-sm border-4 border-black bg-[#16c46a] px-3 py-2 font-black text-white shadow-[4px_4px_0_#000]">{room.code}</span>}
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="flex gap-2">
-                <input value={className} onChange={(event) => setClassName(event.target.value)} disabled={!user} className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
-                <button onClick={createRoom} disabled={!user} className="rounded-sm border-4 border-black bg-[#2b8cff] px-4 font-black text-white shadow-[4px_4px_0_#000] disabled:bg-black/25">방 만들기</button>
-              </div>
-              <div className="flex gap-2">
-                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} disabled={!user} placeholder="참가 코드" className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
-                <button onClick={joinRoom} disabled={!user} className="rounded-sm border-4 border-black bg-white px-4 font-black shadow-[4px_4px_0_#000] disabled:bg-black/5 disabled:text-black/35">참가</button>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {(room?.members ?? []).map((member) => (
-                <div key={member.userId} className="rounded-sm border-4 border-black bg-[#fffdf5] p-3 shadow-[3px_3px_0_#000]">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black">@{member.username}</span>
-                    <span className="text-xs font-black text-[#555]">{member.role}</span>
-                  </div>
-                  <div className="mt-2 flex items-end justify-between">
-                    <span className="text-4xl font-black">{member.jds}</span>
-                    <span className="rounded-sm bg-[#ffe033] px-2 py-1 text-xs font-black">{member.level}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
         </section>
 
         <aside className="space-y-5">
@@ -843,6 +809,40 @@ export function JargemaApp() {
                 }}
               />
             </label>
+          </section>
+
+          <section className="rounded-sm border-4 border-black bg-white p-4 shadow-[7px_7px_0_#000]">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-2xl font-black">클래스 라이브보드</h2>
+                <p className="text-sm font-black text-[#555]">{user ? "방 코드로 참가하고 5초마다 현재 JDS가 갱신됩니다." : "게스트는 공통 피드에만 올라갑니다. 로그인하면 방을 만들 수 있습니다."}</p>
+              </div>
+              {room && <span className="rotate-1 rounded-sm border-4 border-black bg-[#16c46a] px-3 py-2 font-black text-white shadow-[4px_4px_0_#000]">{room.code}</span>}
+            </div>
+            <div className="mt-4 grid gap-3">
+              <div className="flex gap-2">
+                <input value={className} onChange={(event) => setClassName(event.target.value)} disabled={!user} className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
+                <button onClick={createRoom} disabled={!user} className="rounded-sm border-4 border-black bg-[#2b8cff] px-4 font-black text-white shadow-[4px_4px_0_#000] disabled:bg-black/25">방 만들기</button>
+              </div>
+              <div className="flex gap-2">
+                <input value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} disabled={!user} placeholder="참가 코드" className="min-w-0 flex-1 rounded-sm border-4 border-black px-3 font-black disabled:bg-black/5" />
+                <button onClick={joinRoom} disabled={!user} className="rounded-sm border-4 border-black bg-white px-4 font-black shadow-[4px_4px_0_#000] disabled:bg-black/5 disabled:text-black/35">참가</button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2">
+              {(room?.members ?? []).map((member) => (
+                <div key={member.userId} className="rounded-sm border-4 border-black bg-[#fffdf5] p-3 shadow-[3px_3px_0_#000]">
+                  <div className="flex items-center justify-between">
+                    <span className="font-black">@{member.username}</span>
+                    <span className="text-xs font-black text-[#555]">{member.role}</span>
+                  </div>
+                  <div className="mt-2 flex items-end justify-between">
+                    <span className="text-4xl font-black">{member.jds}</span>
+                    <span className="rounded-sm bg-[#ffe033] px-2 py-1 text-xs font-black">{member.level}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </section>
 
         </aside>
