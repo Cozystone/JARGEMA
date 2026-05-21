@@ -268,7 +268,7 @@ export function JargemaApp() {
     video.muted = true;
     video.playsInline = true;
     await video.play();
-    updateCanvasRatio(16, 9);
+    updateCanvasRatio(video.videoWidth || 16, video.videoHeight || 9);
     setCameraStatus("감지 실행 중");
     await startFaceMesh(video);
   }
@@ -322,25 +322,17 @@ export function JargemaApp() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = 1280;
-    canvas.height = 720;
-    updateCanvasRatio(canvas.width, canvas.height);
-    ctx.fillStyle = "#10120f";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const sourceWidth = video.videoWidth || 640;
     const sourceHeight = video.videoHeight || 480;
-    const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
-    const drawWidth = sourceWidth * scale;
-    const drawHeight = sourceHeight * scale;
-    const dx = (canvas.width - drawWidth) / 2;
-    const dy = (canvas.height - drawHeight) / 2;
+    canvas.width = sourceWidth;
+    canvas.height = sourceHeight;
+    updateCanvasRatio(canvas.width, canvas.height);
     drawTransformRef.current = {
-      sourceX: dx,
-      sourceY: dy,
-      scale,
+      sourceX: 0,
+      sourceY: 0,
+      scale: 1,
     };
-    ctx.drawImage(video, dx, dy, drawWidth, drawHeight);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
   }
 
   function updateCanvasRatio(width: number, height: number) {
@@ -670,7 +662,7 @@ export function JargemaApp() {
           <div className="grid gap-4 rounded-lg border border-black/10 bg-white p-3 shadow-sm md:grid-cols-[minmax(0,1fr)_280px]">
             <div className="relative overflow-hidden rounded-md bg-[#10120f]">
               <video ref={videoRef} className="hidden" />
-              <canvas ref={canvasRef} className="w-full object-cover" style={{ aspectRatio: canvasRatio }} />
+              <canvas ref={canvasRef} className="mx-auto block max-h-[70vh] w-full object-contain" style={{ aspectRatio: canvasRatio }} />
               <div className="absolute left-3 top-3 rounded bg-black/70 px-2 py-1 text-xs font-semibold text-white">{cameraStatus}</div>
               <div className="pointer-events-none absolute inset-0" style={{ boxShadow: `inset 0 0 0 9999px ${jds.score >= 40 ? "rgba(255,140,0,0.12)" : "transparent"}` }} />
             </div>
