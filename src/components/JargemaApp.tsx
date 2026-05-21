@@ -111,6 +111,7 @@ export function JargemaApp() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const faceMeshLoopRef = useRef<number | null>(null);
+  const faceMeshIntervalRef = useRef<number | null>(null);
   const faceMeshBusyRef = useRef(false);
   const lastFaceMeshAtRef = useRef(0);
   const lastUiUpdateAtRef = useRef(0);
@@ -325,9 +326,11 @@ export function JargemaApp() {
     });
 
     if (faceMeshLoopRef.current) window.cancelAnimationFrame(faceMeshLoopRef.current);
+    if (faceMeshIntervalRef.current) window.clearInterval(faceMeshIntervalRef.current);
     faceMeshBusyRef.current = false;
     lastFaceMeshAtRef.current = 0;
-    const sendFrame = async (timestamp: number) => {
+
+    const sendFrame = async (timestamp = performance.now()) => {
       const canSend =
         !faceMeshBusyRef.current &&
         timestamp - lastFaceMeshAtRef.current >= FACE_MESH_INTERVAL_MS &&
@@ -342,9 +345,16 @@ export function JargemaApp() {
           faceMeshBusyRef.current = false;
         }
       }
-      faceMeshLoopRef.current = window.requestAnimationFrame(sendFrame);
     };
-    faceMeshLoopRef.current = window.requestAnimationFrame(sendFrame);
+
+    const sendFrameOnAnimation = (timestamp: number) => {
+      void sendFrame(timestamp);
+      faceMeshLoopRef.current = window.requestAnimationFrame(sendFrameOnAnimation);
+    };
+    faceMeshLoopRef.current = window.requestAnimationFrame(sendFrameOnAnimation);
+    faceMeshIntervalRef.current = window.setInterval(() => {
+      void sendFrame();
+    }, FACE_MESH_INTERVAL_MS);
   }
 
   function drawFrame(video: HTMLVideoElement) {
@@ -681,6 +691,13 @@ export function JargemaApp() {
   useEffect(() => {
     soundOnRef.current = soundOn;
   }, [soundOn]);
+
+  useEffect(() => {
+    return () => {
+      if (faceMeshLoopRef.current) window.cancelAnimationFrame(faceMeshLoopRef.current);
+      if (faceMeshIntervalRef.current) window.clearInterval(faceMeshIntervalRef.current);
+    };
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#fffdf5] text-[#10100d]">
