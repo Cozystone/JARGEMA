@@ -25,6 +25,7 @@ type Snapshot = {
   imageUrl: string;
   jdsScore: number;
   caption: string;
+  classCode?: string;
   createdAt: string;
   reactions: Record<string, number>;
 };
@@ -147,6 +148,7 @@ export function JargemaApp() {
     if (jds.score >= 20) return "졸음 초기 징후가 있습니다.";
     return "안정적으로 깨어 있습니다.";
   }, [jds.score]);
+  const classFeed = useMemo(() => (room ? feed.filter((snapshot) => snapshot.classCode === room.code) : []), [feed, room]);
 
   async function authenticate() {
     setAuthError("");
@@ -517,6 +519,7 @@ export function JargemaApp() {
       imageUrl,
       jdsScore: score,
       caption: captions[Math.floor(Math.random() * captions.length)],
+      classCode: room?.code,
       createdAt: new Date().toISOString(),
       reactions: {},
     };
@@ -746,6 +749,16 @@ export function JargemaApp() {
               ))}
             </div>
           </section>
+
+          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+            <FeedAlbum
+              title="클래스 피드"
+              description={room ? `${room.name} · ${room.code} 방에서 촬영된 스냅샷입니다.` : "로그인 후 방을 만들거나 참가하면 클래스 스냅샷이 따로 모입니다."}
+              snapshots={classFeed}
+              emptyText={room ? "아직 이 클래스에 올라온 스냅샷이 없습니다." : "현재 참가 중인 클래스가 없습니다."}
+              columns="compact"
+            />
+          </section>
         </section>
 
         <aside className="space-y-4">
@@ -798,36 +811,19 @@ export function JargemaApp() {
             </label>
           </section>
 
-          <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> 공통 피드</h2>
-                <p className="mt-1 text-sm font-bold text-[#69705d]">게스트와 로그인 사용자의 졸음 스냅샷이 함께 올라옵니다.</p>
-              </div>
-              <span className="rounded-md bg-[#edf0e6] px-2 py-1 text-xs font-black text-[#56604e]">{feed.length} shots</span>
-            </div>
-            <div className="grid gap-3">
-              {feed.length === 0 && <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">아직 공통 피드 스냅샷이 없습니다.</p>}
-              {feed.map((snapshot) => (
-                <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10 bg-[#fbfcf8]">
-                  <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full object-cover" />
-                    <span className="absolute left-2 top-2 rounded bg-[#ff4500] px-2 py-1 text-xs font-black text-white">JDS {snapshot.jdsScore}</span>
-                  </div>
-                  <div className="space-y-2 p-3">
-                    <div className="flex items-center justify-between gap-2 text-xs font-black text-[#69705d]">
-                      <span className="truncate">@{snapshot.username || "guest"}</span>
-                      <span>{new Date(snapshot.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
-                    </div>
-                    <p className="rounded bg-white p-2 text-sm font-black leading-5">{snapshot.caption}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </section>
         </aside>
       </div>
+      <section className="mx-auto max-w-7xl px-4 pb-8 sm:px-6">
+        <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+          <FeedAlbum
+            title="공통 피드"
+            description="게스트와 로그인 사용자의 졸음 스냅샷이 모두 올라오는 공개 앨범입니다."
+            snapshots={feed}
+            emptyText="아직 공통 피드 스냅샷이 없습니다."
+            columns="album"
+          />
+        </div>
+      </section>
     </main>
   );
 }
@@ -842,6 +838,56 @@ function mergeSnapshots(primary: Snapshot[], secondary: Snapshot[]) {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 20);
+}
+
+function FeedAlbum({
+  title,
+  description,
+  snapshots,
+  emptyText,
+  columns,
+}: {
+  title: string;
+  description: string;
+  snapshots: Snapshot[];
+  emptyText: string;
+  columns: "album" | "compact";
+}) {
+  const gridClass = columns === "album" ? "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" : "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
+
+  return (
+    <>
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black"><Users size={20} /> {title}</h2>
+          <p className="mt-1 text-sm font-bold text-[#69705d]">{description}</p>
+        </div>
+        <span className="rounded-md bg-[#edf0e6] px-2 py-1 text-xs font-black text-[#56604e]">{snapshots.length} shots</span>
+      </div>
+      {snapshots.length === 0 ? (
+        <p className="rounded-md bg-[#edf0e6] p-3 text-sm font-semibold">{emptyText}</p>
+      ) : (
+        <div className={gridClass}>
+          {snapshots.map((snapshot) => (
+            <article key={snapshot.id} className="overflow-hidden rounded-md border border-black/10 bg-[#fbfcf8]">
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={snapshot.imageUrl} alt="JARGEMA snapshot" className="aspect-video w-full object-cover" />
+                <span className="absolute left-2 top-2 rounded bg-[#ff4500] px-2 py-1 text-xs font-black text-white">JDS {snapshot.jdsScore}</span>
+              </div>
+              <div className="space-y-2 p-3">
+                <div className="flex items-center justify-between gap-2 text-xs font-black text-[#69705d]">
+                  <span className="truncate">@{snapshot.username || "guest"}</span>
+                  <span>{new Date(snapshot.createdAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+                <p className="rounded bg-white p-2 text-sm font-black leading-5">{snapshot.caption}</p>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
 function Metric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
