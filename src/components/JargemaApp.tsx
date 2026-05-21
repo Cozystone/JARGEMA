@@ -746,7 +746,7 @@ export function JargemaApp() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3">
             <Metric label="EAR" value={metrics.avgEAR.toFixed(3)} icon={<Eye size={18} />} />
             <Metric label="기준 EAR" value={metrics.baselineEAR ? metrics.baselineEAR.toFixed(3) : "측정 중"} icon={<Eye size={18} />} />
             <Metric label="PERCLOS" value={`${metrics.perclos.toFixed(1)}%`} icon={<Radio size={18} />} />
